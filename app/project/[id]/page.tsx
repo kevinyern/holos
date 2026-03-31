@@ -290,12 +290,27 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     if (!userId) return
     setRelightingId(photo.id)
     try {
+      // Use existing base64 or fetch the processed (or original) image
+      let imgBase64 = photo.originalBase64
+      let imgMimeType = photo.originalMimeType || 'image/jpeg'
+      if (!imgBase64) {
+        const sourceUrl = photo.processedUrl || photo.originalUrl
+        const imgRes = await fetch(sourceUrl)
+        const buf = await imgRes.arrayBuffer()
+        const bytes = new Uint8Array(buf)
+        let binary = ''
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+        imgBase64 = btoa(binary)
+        const ct = imgRes.headers.get('content-type')
+        if (ct) imgMimeType = ct
+      }
+
       const res = await fetch('/api/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          image: photo.originalBase64,
-          mimeType: photo.originalMimeType,
+          image: imgBase64,
+          mimeType: imgMimeType,
           processType: relightType,
         }),
       })
@@ -653,26 +668,24 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                           Descargar
                         </a>
                       </div>
-                      {/* Relighting buttons - only show if we have base64 data (newly processed photos) */}
-                      {photo.originalBase64 && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500 mr-1">Relighting:</span>
-                          {([
-                            { type: 'relight-dawn' as const, label: 'Amanecer' },
-                            { type: 'relight-day' as const, label: 'Día' },
-                            { type: 'relight-night' as const, label: 'Noche' },
-                          ]).map((rl) => (
-                            <button
-                              key={rl.type}
-                              onClick={() => relightPhoto(photo, rl.type)}
-                              disabled={relightingId === photo.id}
-                              className="text-xs px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:border-accent/50 hover:text-accent text-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {relightingId === photo.id ? 'Procesando...' : rl.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      {/* Relighting buttons */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 mr-1">Relighting:</span>
+                        {([
+                          { type: 'relight-dawn' as const, label: 'Amanecer' },
+                          { type: 'relight-day' as const, label: 'Día' },
+                          { type: 'relight-night' as const, label: 'Noche' },
+                        ]).map((rl) => (
+                          <button
+                            key={rl.type}
+                            onClick={() => relightPhoto(photo, rl.type)}
+                            disabled={relightingId === photo.id}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:border-accent/50 hover:text-accent text-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {relightingId === photo.id ? 'Procesando...' : rl.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ))}
