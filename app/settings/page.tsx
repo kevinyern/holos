@@ -11,8 +11,8 @@ const MOCK_USER = {
 }
 
 const PLANS = [
-  { id: 'starter', name: 'Starter', price: '197€', features: ['100 fotos/mes', 'Proyectos ilimitados', 'Enhancement profesional', 'Relighting 4 luces'] },
-  { id: 'pro', name: 'Pro', price: '397€', features: ['500 fotos/mes', 'Proyectos ilimitados', 'Enhancement profesional', 'Relighting 4 luces', 'Soporte prioritario'] },
+  { id: 'starter', name: 'Starter', price: '197€', features: ['100 fotos/mes', 'Hasta 5 proyectos', 'Enhancement profesional', 'Relighting 4 luces'] },
+  { id: 'pro', name: 'Pro', price: '397€', features: ['500 fotos/mes', 'Hasta 20 proyectos', 'Enhancement profesional', 'Relighting 4 luces', 'Soporte prioritario'] },
 ]
 
 export default function SettingsPage() {
