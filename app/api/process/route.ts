@@ -70,13 +70,34 @@ STYLE: Photorealistic, high-end interior design, clean and modern.
 OUTPUT: A realistic "after renovation" version of the same space.`
 
     case 'relight-dawn':
-      return 'Transform the lighting in this real estate photo to look like early morning golden sunrise light coming through the windows. Keep all furniture and architecture identical. Photorealistic.'
+      return `Keep the exact same image, composition, and objects.
+Only modify lighting conditions:
+- Simulate early morning sunrise light
+- Warm soft golden tones entering from windows
+- Long soft shadows
+- Gentle atmospheric glow
+- Calm, cozy morning feeling
+Keep everything else unchanged. Photorealistic lighting only.`
 
     case 'relight-day':
-      return 'Transform the lighting to bright natural midday daylight. Large windows fully lit. Keep all elements identical. Photorealistic real estate photo.'
+      return `Keep everything identical.
+Modify only lighting:
+- Bright natural daylight
+- Neutral white sunlight
+- Clean shadows, well-balanced exposure
+- Interior evenly lit with soft natural bounce light
+- High-end real estate daylight look
+No changes to objects or layout.`
 
     case 'relight-night':
-      return 'Transform the lighting to a cozy evening atmosphere with warm interior lights turned on. No natural light. Keep all furniture and architecture identical. Photorealistic.'
+      return `Keep everything identical.
+Modify only lighting:
+- Night environment outside (dark windows)
+- Turn on realistic interior lights (warm tones)
+- Add soft lamp and ceiling lighting glow
+- Create cozy ambient atmosphere
+- Natural light falloff and shadows
+No changes to furniture or structure. Photorealistic only.`
   }
 }
 

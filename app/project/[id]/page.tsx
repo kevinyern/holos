@@ -305,14 +305,18 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           <div>
             {/* Photography tip */}
             <div className="mb-6 bg-accent/5 border border-accent/20 rounded-xl px-5 py-4">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-sm text-gray-300">
-                  <span className="font-medium text-white">Tip:</span> Para mejores resultados, fotografía en vertical, usa el modo 0.5x (gran angular) de tu móvil, y posiciónate desde una esquina de la habitación.
-                </p>
+              <p className="text-sm font-semibold text-white mb-3">📸 Cómo sacar la mejor foto (esto marca la diferencia)</p>
+              <div className="grid grid-cols-2 gap-1.5 text-sm text-gray-300">
+                <span>📱 Dispara en horizontal</span>
+                <span>📏 Altura: 1.2–1.5 metros</span>
+                <span>📐 Mantén el móvil recto</span>
+                <span>🪟 Abre ventanas (luz natural)</span>
+                <span>💡 Enciende luces si es oscuro</span>
+                <span>🚫 No uses zoom</span>
+                <span>📸 Desde las esquinas</span>
+                <span>🧼 Quita el desorden antes</span>
               </div>
+              <p className="text-xs text-gray-500 mt-3">Si el input es malo, el resultado será mediocre. Una buena foto base = un resultado espectacular.</p>
             </div>
 
             <input
