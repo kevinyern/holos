@@ -77,7 +77,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       setProject(proj)
 
       const { data: photos, error: photosErr } = await supabase
-        .from('PHOTOS')
+        .from('photos')
         .select('*')
         .eq('project_id', params.id)
         .order('created_at', { ascending: false })
@@ -181,7 +181,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         const timestamp = Date.now()
         const originalPath = `${userId}/${params.id}/original-${timestamp}-${photo.name}`
         const { error: uploadError } = await supabase.storage
-          .from('PHOTOS')
+          .from('photos')
           .upload(originalPath, photo.file, { upsert: true })
 
         if (uploadError) throw uploadError
@@ -226,7 +226,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         const processedPath = `${userId}/${params.id}/processed-${timestamp}-${photo.name}`
 
         const { error: processedUploadError } = await supabase.storage
-          .from('PHOTOS')
+          .from('photos')
           .upload(processedPath, processedBlob, { upsert: true })
 
         if (processedUploadError) throw processedUploadError
@@ -237,7 +237,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
         // Insert photo record in database
         const { error: insertError } = await supabase
-          .from('PHOTOS')
+          .from('photos')
           .insert({
             project_id: params.id,
             original_url: originalUrl,
@@ -326,7 +326,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       const processedPath = `${userId}/${params.id}/relight-${Date.now()}-${photo.name}`
 
       const { error: uploadErr } = await supabase.storage
-        .from('PHOTOS')
+        .from('photos')
         .upload(processedPath, processedBlob, { upsert: true })
 
       if (uploadErr) throw uploadErr
