@@ -21,7 +21,7 @@ function getPromptAndStrength(
     case 'professional':
       return {
         strength: 0.65,
-        prompt: `Professional real estate photography enhancement. Correct lens distortion and vertical lines. Improve lighting naturally with soft balanced realistic light. Increase dynamic range subtly. Enhance sharpness and clarity. Improve color accuracy with neutral whites and realistic tones. Remove noise and compression artifacts. Add subtle depth and contrast for a premium high-end property listing look. Photorealistic, no overprocessing.`,
+        prompt: `You are a professional real estate photographer and home staging expert. Transform this mobile photo into a high-end professional real estate photo that is clean, organized, and visually attractive while keeping the space completely real and unchanged in structure. STRICT RULES: Keep the EXACT same room, layout, and camera angle. DO NOT change architecture. DO NOT add new furniture that does not exist. DO NOT remove essential furniture. Preserve realism at all times. ENHANCEMENT: Correct perspective and vertical lines. Improve lighting naturally soft and balanced. Increase dynamic range subtly. Enhance sharpness and clarity. Fix white balance with neutral realistic tones. Remove noise and compression artifacts. CLEANING: Remove visual clutter, cables, and mess. Clean surfaces. Organize visible items minimally. Make the space feel clean, breathable, and ready to sell. STYLE: Photorealistic, high-end real estate photography, clean minimal premium, no CGI look, no overprocessing. OUTPUT: Ultra-realistic image that looks like a professionally photographed perfectly tidy version of the same exact space.`,
       }
 
     case 'declutter':

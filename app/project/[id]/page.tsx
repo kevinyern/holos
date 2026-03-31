@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase'
 
 const TABS = ['Upload', 'Procesando', 'Resultados'] as const
 type Tab = (typeof TABS)[number]
-type ProcessMode = 'professional' | 'declutter' | 'renovation'
+type ProcessMode = 'professional' | 'renovation'
 
 interface UploadedPhoto {
   id: string
@@ -318,8 +318,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   }
 
   const MODE_OPTIONS: { value: ProcessMode; label: string; desc: string }[] = [
-    { value: 'professional', label: 'Foto profesional', desc: 'Mejora calidad, luz y nitidez' },
-    { value: 'declutter', label: 'Limpiar y ordenar', desc: 'Elimina desorden, organiza el espacio' },
+    { value: 'professional', label: 'Foto profesional', desc: 'Mejora calidad, luz, nitidez y limpieza' },
     { value: 'renovation', label: 'Visualizar reforma', desc: 'Transforma el espacio según tu idea' },
   ]
 
