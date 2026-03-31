@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 
 const TABS = ['Upload', 'Procesando', 'Resultados'] as const
 type Tab = (typeof TABS)[number]
+type ProcessMode = 'professional' | 'declutter' | 'renovation'
 
 interface UploadedPhoto {
   id: string
@@ -27,6 +28,8 @@ interface ResultPhoto {
   name: string
   originalUrl: string
   processedUrl: string
+  originalBase64: string
+  originalMimeType: string
 }
 
 export default function ProjectPage({ params }: { params: { id: string } }) {
@@ -36,10 +39,12 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   const [results, setResults] = useState<ResultPhoto[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [processMode, setProcessMode] = useState<ProcessMode>('professional')
+  const [renovationText, setRenovationText] = useState('')
+  const [relightingId, setRelightingId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
-  // Ensure bucket exists on mount
   useEffect(() => {
     fetch('/api/ensure-bucket', { method: 'POST' }).catch(() => {})
   }, [])
@@ -79,7 +84,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       const reader = new FileReader()
       reader.onload = () => {
         const result = reader.result as string
-        // Strip the data URL prefix to get raw base64
         resolve(result.split(',')[1])
       }
       reader.onerror = reject
@@ -88,19 +92,17 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
   const processPhotos = async () => {
     if (uploads.length === 0) return
+    if (processMode === 'renovation' && !renovationText.trim()) return
     setIsProcessing(true)
 
-    // Move to Procesando tab
     const toProcess = [...uploads]
     setUploads([])
     setActiveTab('Procesando')
 
-    // Initialize processing entries
     setProcessing(toProcess.map((p) => ({ id: p.id, name: p.name, progress: 0 })))
 
     for (const photo of toProcess) {
       try {
-        // Step 1: Upload original to Supabase Storage (20%)
         setProcessing((prev) =>
           prev.map((p) => (p.id === photo.id ? { ...p, progress: 10 } : p))
         )
@@ -120,7 +122,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           prev.map((p) => (p.id === photo.id ? { ...p, progress: 30 } : p))
         )
 
-        // Step 2: Convert to base64 and send to Gemini (30% -> 80%)
         const base64 = await fileToBase64(photo.file)
 
         setProcessing((prev) =>
@@ -130,7 +131,12 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         const res = await fetch('/api/process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64, mimeType: photo.file.type }),
+          body: JSON.stringify({
+            image: base64,
+            mimeType: photo.file.type,
+            processType: processMode,
+            userRequest: processMode === 'renovation' ? renovationText.trim() : undefined,
+          }),
         })
 
         setProcessing((prev) =>
@@ -141,7 +147,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
         const data = await res.json()
 
-        // Step 3: Upload processed image to Storage (80% -> 100%)
         const processedBytes = Uint8Array.from(atob(data.image), (c) => c.charCodeAt(0))
         const processedBlob = new Blob([processedBytes], {
           type: data.mimeType || 'image/jpeg',
@@ -162,19 +167,23 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           prev.map((p) => (p.id === photo.id ? { ...p, progress: 100 } : p))
         )
 
-        // Add to results
         setResults((prev) => [
           ...prev,
-          { id: photo.id, name: photo.name, originalUrl, processedUrl },
+          {
+            id: photo.id,
+            name: photo.name,
+            originalUrl,
+            processedUrl,
+            originalBase64: base64,
+            originalMimeType: photo.file.type,
+          },
         ])
 
-        // Remove from processing after a short delay
         setTimeout(() => {
           setProcessing((prev) => prev.filter((p) => p.id !== photo.id))
         }, 600)
       } catch (err) {
         console.error(`Error processing ${photo.name}:`, err)
-        // Mark as failed and remove
         setProcessing((prev) =>
           prev.map((p) => (p.id === photo.id ? { ...p, progress: -1 } : p))
         )
@@ -186,11 +195,59 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
     setIsProcessing(false)
 
-    // Auto-switch to results when all done
     setTimeout(() => {
       setActiveTab('Resultados')
     }, 800)
   }
+
+  const relightPhoto = async (photo: ResultPhoto, relightType: 'relight-dawn' | 'relight-day' | 'relight-night') => {
+    setRelightingId(photo.id)
+    try {
+      const res = await fetch('/api/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image: photo.originalBase64,
+          mimeType: photo.originalMimeType,
+          processType: relightType,
+        }),
+      })
+
+      if (!res.ok) throw new Error('Relighting failed')
+
+      const data = await res.json()
+
+      const processedBytes = Uint8Array.from(atob(data.image), (c) => c.charCodeAt(0))
+      const processedBlob = new Blob([processedBytes], {
+        type: data.mimeType || 'image/jpeg',
+      })
+      const processedPath = `${params.id}/relight-${Date.now()}-${photo.name}`
+
+      const { error: uploadErr } = await supabase.storage
+        .from('photos')
+        .upload(processedPath, processedBlob, { upsert: true })
+
+      if (uploadErr) throw uploadErr
+
+      const {
+        data: { publicUrl: newUrl },
+      } = supabase.storage.from('photos').getPublicUrl(processedPath)
+
+      setResults((prev) =>
+        prev.map((r) => (r.id === photo.id ? { ...r, processedUrl: newUrl } : r))
+      )
+    } catch (err) {
+      console.error('Relight error:', err)
+    } finally {
+      setRelightingId(null)
+    }
+  }
+
+  const MODE_OPTIONS: { value: ProcessMode; label: string; desc: string }[] = [
+    { value: 'professional', label: 'Foto profesional', desc: 'Mejora calidad, luz y nitidez' },
+    { value: 'declutter', label: 'Limpiar y ordenar', desc: 'Elimina desorden, organiza el espacio' },
+    { value: 'renovation', label: 'Visualizar reforma', desc: 'Transforma el espacio según tu idea' },
+  ]
 
   return (
     <div className="min-h-screen bg-surface">
@@ -246,6 +303,18 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         {/* Upload tab */}
         {activeTab === 'Upload' && (
           <div>
+            {/* Photography tip */}
+            <div className="mb-6 bg-accent/5 border border-accent/20 rounded-xl px-5 py-4">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-accent mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-gray-300">
+                  <span className="font-medium text-white">Tip:</span> Para mejores resultados, fotografía en vertical, usa el modo 0.5x (gran angular) de tu móvil, y posiciónate desde una esquina de la habitación.
+                </p>
+              </div>
+            </div>
+
             <input
               ref={fileInputRef}
               type="file"
@@ -293,7 +362,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 <h3 className="text-sm font-medium text-gray-400 mb-4">
                   Archivos seleccionados ({uploads.length})
                 </h3>
-                <div className="space-y-2">
+                <div className="space-y-2 mb-8">
                   {uploads.map((photo) => (
                     <div
                       key={photo.id}
@@ -334,10 +403,47 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                   ))}
                 </div>
 
+                {/* Process mode selection */}
+                <h3 className="text-sm font-medium text-gray-400 mb-3">Modo de procesado</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                  {MODE_OPTIONS.map((mode) => (
+                    <button
+                      key={mode.value}
+                      onClick={() => setProcessMode(mode.value)}
+                      className={`text-left p-4 rounded-xl border-2 transition-all ${
+                        processMode === mode.value
+                          ? 'border-accent bg-accent/10'
+                          : 'border-surface-border bg-surface-card hover:border-gray-600'
+                      }`}
+                    >
+                      <p className={`text-sm font-semibold ${processMode === mode.value ? 'text-accent' : 'text-white'}`}>
+                        {mode.label}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{mode.desc}</p>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Renovation textarea */}
+                {processMode === 'renovation' && (
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Describe la reforma que quieres visualizar
+                    </label>
+                    <textarea
+                      value={renovationText}
+                      onChange={(e) => setRenovationText(e.target.value)}
+                      placeholder="Ej: Cambiar el suelo a madera clara, pintar las paredes de blanco, modernizar la cocina con encimera de mármol..."
+                      rows={3}
+                      className="w-full bg-surface-card border border-surface-border rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-accent resize-none"
+                    />
+                  </div>
+                )}
+
                 <button
                   onClick={processPhotos}
-                  disabled={isProcessing}
-                  className="mt-6 bg-accent hover:bg-accent-light disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-3 rounded-xl transition-colors"
+                  disabled={isProcessing || (processMode === 'renovation' && !renovationText.trim())}
+                  className="bg-accent hover:bg-accent-light disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-3 rounded-xl transition-colors"
                 >
                   Procesar {uploads.length} foto{uploads.length !== 1 ? 's' : ''}
                 </button>
@@ -430,17 +536,37 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                         />
                       </div>
                     </div>
-                    <div className="p-4 flex items-center justify-between border-t border-surface-border">
-                      <p className="text-sm font-medium text-white">{photo.name}</p>
-                      <a
-                        href={photo.processedUrl}
-                        download={`processed-${photo.name}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-accent hover:text-accent-light text-sm transition-colors"
-                      >
-                        Descargar
-                      </a>
+                    <div className="p-4 border-t border-surface-border">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-medium text-white">{photo.name}</p>
+                        <a
+                          href={photo.processedUrl}
+                          download={`processed-${photo.name}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-accent hover:text-accent-light text-sm transition-colors"
+                        >
+                          Descargar
+                        </a>
+                      </div>
+                      {/* Relighting buttons */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 mr-1">Relighting:</span>
+                        {([
+                          { type: 'relight-dawn' as const, label: 'Amanecer', icon: '~' },
+                          { type: 'relight-day' as const, label: 'Día', icon: '~' },
+                          { type: 'relight-night' as const, label: 'Noche', icon: '~' },
+                        ]).map((rl) => (
+                          <button
+                            key={rl.type}
+                            onClick={() => relightPhoto(photo, rl.type)}
+                            disabled={relightingId === photo.id}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:border-accent/50 hover:text-accent text-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {relightingId === photo.id ? 'Procesando...' : rl.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ))}
