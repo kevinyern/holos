@@ -121,7 +121,10 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         size: formatSize(file.size),
         file,
       }))
-    setUploads((prev) => [...prev, ...newPhotos])
+    setUploads((prev) => {
+      const combined = [...prev, ...newPhotos]
+      return combined.slice(0, 7)
+    })
   }, [])
 
   const handleDrop = useCallback(
