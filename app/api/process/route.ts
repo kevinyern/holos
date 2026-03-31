@@ -20,7 +20,7 @@ function getPromptAndStrength(
   switch (processType) {
     case 'professional':
       return {
-        strength: 0.42,
+        strength: 0.58,
         prompt: `Professional real estate photo. Exact same room, exact same furniture, exact same angle. Only improve: white balance (clean neutral whites), exposure (bright and airy), color grading (warm natural tones), sharpness (crisp details), remove noise. Do NOT move or change any furniture. Do NOT add or remove objects. Photorealistic enhancement only. Result must look like the same photo taken by a professional photographer with a DSLR camera. Clean, bright, inviting, ready for property listing.`,
       }
 
