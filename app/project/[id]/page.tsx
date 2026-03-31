@@ -305,17 +305,17 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           <div>
             {/* Photography tip */}
             <div className="mb-6 bg-accent/5 border border-accent/20 rounded-xl px-5 py-4">
-              <p className="text-sm font-semibold text-white mb-3">📸 Cómo sacar la mejor foto (esto marca la diferencia)</p>
-              <div className="grid grid-cols-2 gap-1.5 text-sm text-gray-300">
-                <span>📱 Dispara en horizontal</span>
-                <span>📏 Altura: 1.2–1.5 metros</span>
-                <span>📐 Mantén el móvil recto</span>
-                <span>🪟 Abre ventanas (luz natural)</span>
-                <span>💡 Enciende luces si es oscuro</span>
-                <span>🚫 No uses zoom</span>
-                <span>📸 Desde las esquinas</span>
-                <span>🧼 Quita el desorden antes</span>
-              </div>
+              <p className="text-sm font-semibold text-white mb-3">Cómo sacar la mejor foto (esto marca la diferencia)</p>
+              <ul className="grid grid-cols-2 gap-1.5 text-sm text-gray-300 list-none">
+                <li>· Dispara en horizontal</li>
+                <li>· Altura: 1.2–1.5 metros</li>
+                <li>· Mantén el móvil recto</li>
+                <li>· Abre ventanas (luz natural)</li>
+                <li>· Enciende luces si es oscuro</li>
+                <li>· No uses zoom</li>
+                <li>· Desde las esquinas</li>
+                <li>· Quita el desorden antes</li>
+              </ul>
               <p className="text-xs text-gray-500 mt-3">Si el input es malo, el resultado será mediocre. Una buena foto base = un resultado espectacular.</p>
             </div>
 
