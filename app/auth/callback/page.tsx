@@ -7,23 +7,23 @@ export default function AuthCallback() {
   const supabase = createClient()
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        window.location.href = '/dashboard'
-      } else {
-        // Espera un momento y reintenta — el token OAuth puede tardar
-        setTimeout(async () => {
-          const { data: { session: session2 } } = await supabase.auth.getSession()
-          if (session2) {
-            window.location.href = '/dashboard'
-          } else {
-            window.location.href = '/auth'
-          }
-        }, 2000)
+    // Supabase manda el token como hash fragment
+    // El SDK lo procesa automáticamente con detectSessionInUrl
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        window.location.replace('/dashboard')
       }
-    }
-    checkSession()
+      if (event === 'SIGNED_OUT' || (!session && event !== 'INITIAL_SESSION')) {
+        window.location.replace('/auth')
+      }
+    })
+
+    // También comprueba si ya hay sesión activa
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) window.location.replace('/dashboard')
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   return (
