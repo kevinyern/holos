@@ -1,7 +1,7 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { fal } from '@fal-ai/client'
 import { NextRequest, NextResponse } from 'next/server'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+fal.config({ credentials: process.env.FAL_KEY! })
 
 type ProcessType =
   | 'professional'
@@ -11,93 +11,46 @@ type ProcessType =
   | 'relight-day'
   | 'relight-night'
 
-function getPrompt(processType: ProcessType, userRequest?: string): string {
+function getPromptAndStrength(
+  processType: ProcessType,
+  userRequest?: string
+): { prompt: string; strength: number } {
   switch (processType) {
     case 'professional':
-      return `You are a professional real estate photographer and image enhancer.
-INPUT IMAGE: a mobile phone photo of a real interior space.
-STRICT RULES:
-- DO NOT change the layout, furniture, or objects.
-- DO NOT move anything.
-- DO NOT add or remove elements.
-- Keep the exact same camera angle and composition.
-TASK: Enhance the image to look like it was taken by a professional architectural photographer.
-IMPROVEMENTS REQUIRED:
-- Correct lens distortion and vertical lines (perfect perspective correction)
-- Improve lighting naturally (soft, balanced, realistic light)
-- Increase dynamic range (HDR effect but subtle and realistic)
-- Enhance sharpness and clarity without artificial look
-- Improve color accuracy (neutral whites, realistic tones)
-- Remove noise and compression artifacts
-- Add subtle depth and contrast for a premium look
-STYLE: Photorealistic, natural real estate photography, no overprocessing, clean premium high-end property listing look.
-OUTPUT: A high-resolution ultra-realistic professional real estate photo identical in composition but significantly improved in quality.`
+      return {
+        strength: 0.65,
+        prompt: `Professional real estate photography enhancement. Correct lens distortion and vertical lines. Improve lighting naturally with soft balanced realistic light. Increase dynamic range subtly. Enhance sharpness and clarity. Improve color accuracy with neutral whites and realistic tones. Remove noise and compression artifacts. Add subtle depth and contrast for a premium high-end property listing look. Photorealistic, no overprocessing.`,
+      }
 
     case 'declutter':
-      return `You are a real estate staging expert.
-INPUT IMAGE: a real interior space.
-STRICT RULES:
-- Keep the exact same room, layout, and camera angle.
-- DO NOT change architecture.
-- DO NOT add new furniture that does not exist.
-- You may reorganize existing objects.
-TASK: Clean and declutter the space to make it look tidy, minimal, and attractive for a property listing.
-ACTIONS:
-- Remove visible clutter (random objects, cables, mess)
-- Organize surfaces (tables, countertops, shelves)
-- Align furniture slightly if needed (but keep original pieces)
-- Make the space feel breathable and clean
-- Remove distractions but keep realism
-STYLE: Minimal, clean, neutral, realistic, looks like a well-kept home ready to sell.
-OUTPUT: Same room, same angle, but clean, organized, and visually appealing.`
+      return {
+        strength: 0.65,
+        prompt: `Clean and declutter this interior space for a property listing. Remove visible clutter, random objects, cables, and mess. Organize surfaces like tables, countertops, and shelves. Make the space feel breathable, clean, minimal, and attractive. Keep the same room layout and furniture. Realistic, neutral, looks like a well-kept home ready to sell.`,
+      }
 
     case 'renovation':
-      return `You are an interior designer and architectural visualization expert.
-INPUT IMAGE: a real interior space.
-STRICT RULES:
-- Keep the exact structure (walls, windows, doors, proportions)
-- Maintain original camera angle and perspective
-- Do NOT alter room dimensions
-- Do NOT invent new architectural elements
-TASK: Transform the space according to the following renovation instructions:
-${userRequest || ''}
-GUIDELINES:
-- All changes must be realistic and physically possible
-- Maintain correct lighting interaction with new materials
-- Keep coherence with space proportions
-- Materials must look real (no CGI feel)
-STYLE: Photorealistic, high-end interior design, clean and modern.
-OUTPUT: A realistic "after renovation" version of the same space.`
+      return {
+        strength: 0.85,
+        prompt: `Interior renovation of this space. Keep the exact structure, walls, windows, doors, and proportions. Transform the space with: ${userRequest || ''}. All changes must be realistic and physically possible. Materials must look real, no CGI feel. Photorealistic high-end interior design, clean and modern.`,
+      }
 
     case 'relight-dawn':
-      return `Keep the exact same image, composition, and objects.
-Only modify lighting conditions:
-- Simulate early morning sunrise light
-- Warm soft golden tones entering from windows
-- Long soft shadows
-- Gentle atmospheric glow
-- Calm, cozy morning feeling
-Keep everything else unchanged. Photorealistic lighting only.`
+      return {
+        strength: 0.55,
+        prompt: `Same room, only change the lighting. Early morning sunrise light. Warm soft golden tones entering from windows. Long soft shadows. Gentle atmospheric glow. Calm cozy morning feeling. Photorealistic lighting only.`,
+      }
 
     case 'relight-day':
-      return `Keep everything identical.
-Modify only lighting:
-- Bright natural daylight
-- Neutral white sunlight
-- Clean shadows, well-balanced exposure
-- Interior evenly lit with soft natural bounce light
-- High-end real estate daylight look
-No changes to objects or layout.`
+      return {
+        strength: 0.55,
+        prompt: `Same room, only change the lighting. Bright natural daylight. Neutral white sunlight. Clean shadows, well-balanced exposure. Interior evenly lit with soft natural bounce light. High-end real estate daylight look. Photorealistic.`,
+      }
 
     case 'relight-night':
-      return `Keep everything identical.
-Modify only lighting:
-- Night environment outside (dark windows)
-- Turn on realistic interior lights (warm tones)
-- Add soft lamp and ceiling lighting glow
-- Create cozy ambient atmosphere
-- Natural light falloff and shadows
-No changes to furniture or structure. Photorealistic only.`
+      return {
+        strength: 0.55,
+        prompt: `Same room, only change the lighting. Night environment outside with dark windows. Realistic warm interior lights turned on. Soft lamp and ceiling lighting glow. Cozy ambient atmosphere. Natural light falloff and shadows. Photorealistic only.`,
+      }
   }
 }
 
@@ -118,50 +71,31 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const prompt = getPrompt(processType as ProcessType, userRequest)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
+    const { prompt, strength } = getPromptAndStrength(processType as ProcessType, userRequest)
+    const imageUrl = `data:${mimeType || 'image/jpeg'};base64,${imgData}`
 
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: prompt },
-            {
-              inlineData: {
-                mimeType: mimeType || 'image/jpeg',
-                data: imgData,
-              },
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        responseModalities: ['image', 'text'],
-      } as any,
+    const result = await fal.subscribe('fal-ai/flux/dev/image-to-image', {
+      input: {
+        image_url: imageUrl,
+        prompt,
+        strength,
+      },
     })
 
-    const response = result.response
-    const parts = response.candidates?.[0]?.content?.parts
+    const outputUrl = (result as any).data?.images?.[0]?.url
 
-    if (!parts) {
-      return NextResponse.json({ error: 'No response from Gemini' }, { status: 500 })
+    if (!outputUrl) {
+      return NextResponse.json({ error: 'No image returned from fal.ai' }, { status: 500 })
     }
 
-    for (const part of parts) {
-      if ((part as any).inlineData) {
-        const inlineData = (part as any).inlineData
-        return NextResponse.json({
-          image: inlineData.data,
-          mimeType: inlineData.mimeType,
-        })
-      }
-    }
+    // Download the result image and convert to base64
+    const imageResponse = await fetch(outputUrl)
+    const arrayBuffer = await imageResponse.arrayBuffer()
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
 
     return NextResponse.json({
-      image: imgData,
-      mimeType: mimeType || 'image/jpeg',
-      note: 'Gemini did not return an enhanced image, returning original',
+      image: base64,
+      mimeType: 'image/jpeg',
     })
   } catch (error: any) {
     console.error('Process error:', error)
