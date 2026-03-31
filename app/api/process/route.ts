@@ -20,8 +20,8 @@ function getPromptAndStrength(
   switch (processType) {
     case 'professional':
       return {
-        strength: 0.65,
-        prompt: `You are a professional real estate photographer and home staging expert. Transform this mobile photo into a high-end professional real estate photo that is clean, organized, and visually attractive while keeping the space completely real and unchanged in structure. STRICT RULES: Keep the EXACT same room, layout, and camera angle. DO NOT change architecture. DO NOT add new furniture that does not exist. DO NOT remove essential furniture. Preserve realism at all times. ENHANCEMENT: Correct perspective and vertical lines. Improve lighting naturally soft and balanced. Increase dynamic range subtly. Enhance sharpness and clarity. Fix white balance with neutral realistic tones. Remove noise and compression artifacts. CLEANING: Remove visual clutter, cables, and mess. Clean surfaces. Organize visible items minimally. Make the space feel clean, breathable, and ready to sell. STYLE: Photorealistic, high-end real estate photography, clean minimal premium, no CGI look, no overprocessing. OUTPUT: Ultra-realistic image that looks like a professionally photographed perfectly tidy version of the same exact space.`,
+        strength: 0.78,
+        prompt: `Professional real estate photography. Same room, same angle, same furniture. DRAMATICALLY improve: lighting (bright, natural, airy), colors (vivid but realistic), sharpness (crisp details), perspective (straight vertical lines). REMOVE all clutter, cables, random objects. CLEAN all surfaces. Make the space look STUNNING — like a luxury property listing photo. Natural light flooding in, clean whites, warm tones. The result must look WOW compared to the original. Photorealistic, high-end, magazine quality. No CGI. No fake elements.`,
       }
 
     case 'declutter':
