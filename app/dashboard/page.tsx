@@ -59,7 +59,7 @@ export default function DashboardPage() {
       const projectsWithCounts: Project[] = await Promise.all(
         (projectRows || []).map(async (p) => {
           const { count } = await supabase
-            .from('photos')
+            .from('PHOTOS')
             .select('*', { count: 'exact', head: true })
             .eq('project_id', p.id)
           return { ...p, photo_count: count || 0 }
