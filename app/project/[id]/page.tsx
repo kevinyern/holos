@@ -13,8 +13,6 @@ interface UploadedPhoto {
   name: string
   size: string
   file: File
-  storagePath?: string
-  publicUrl?: string
 }
 
 interface ProcessingPhoto {
@@ -32,6 +30,12 @@ interface ResultPhoto {
   originalMimeType: string
 }
 
+interface ProjectData {
+  id: string
+  name: string
+  status: string
+}
+
 export default function ProjectPage({ params }: { params: { id: string } }) {
   const [activeTab, setActiveTab] = useState<Tab>('Upload')
   const [uploads, setUploads] = useState<UploadedPhoto[]>([])
@@ -42,12 +46,66 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   const [processMode, setProcessMode] = useState<ProcessMode>('professional')
   const [renovationText, setRenovationText] = useState('')
   const [relightingId, setRelightingId] = useState<string | null>(null)
+  const [project, setProject] = useState<ProjectData | null>(null)
+  const [loadingProject, setLoadingProject] = useState(true)
+  const [userId, setUserId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
   useEffect(() => {
     fetch('/api/ensure-bucket', { method: 'POST' }).catch(() => {})
+    loadProjectAndPhotos()
   }, [])
+
+  async function loadProjectAndPhotos() {
+    setLoadingProject(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      setUserId(user.id)
+
+      const { data: proj, error: projErr } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', params.id)
+        .single()
+
+      if (projErr || !proj) {
+        console.error('Error loading project:', projErr)
+        return
+      }
+      setProject(proj)
+
+      const { data: photos, error: photosErr } = await supabase
+        .from('photos')
+        .select('*')
+        .eq('project_id', params.id)
+        .order('created_at', { ascending: false })
+
+      if (photosErr) {
+        console.error('Error loading photos:', photosErr)
+        return
+      }
+
+      if (photos && photos.length > 0) {
+        const loadedResults: ResultPhoto[] = photos
+          .filter((p) => p.status === 'completed' && p.processed_url)
+          .map((p) => ({
+            id: p.id,
+            name: p.original_url?.split('/').pop() || 'foto',
+            originalUrl: p.original_url,
+            processedUrl: p.processed_url,
+            originalBase64: '',
+            originalMimeType: 'image/jpeg',
+          }))
+        setResults(loadedResults)
+      }
+    } catch (err) {
+      console.error('Error:', err)
+    } finally {
+      setLoadingProject(false)
+    }
+  }
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
@@ -91,7 +149,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     })
 
   const processPhotos = async () => {
-    if (uploads.length === 0) return
+    if (uploads.length === 0 || !userId) return
     if (processMode === 'renovation' && !renovationText.trim()) return
     setIsProcessing(true)
 
@@ -107,16 +165,17 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           prev.map((p) => (p.id === photo.id ? { ...p, progress: 10 } : p))
         )
 
-        const storagePath = `${params.id}/${Date.now()}-${photo.name}`
+        const timestamp = Date.now()
+        const originalPath = `${userId}/${params.id}/original-${timestamp}-${photo.name}`
         const { error: uploadError } = await supabase.storage
           .from('photos')
-          .upload(storagePath, photo.file, { upsert: true })
+          .upload(originalPath, photo.file, { upsert: true })
 
         if (uploadError) throw uploadError
 
         const {
           data: { publicUrl: originalUrl },
-        } = supabase.storage.from('photos').getPublicUrl(storagePath)
+        } = supabase.storage.from('photos').getPublicUrl(originalPath)
 
         setProcessing((prev) =>
           prev.map((p) => (p.id === photo.id ? { ...p, progress: 30 } : p))
@@ -151,7 +210,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         const processedBlob = new Blob([processedBytes], {
           type: data.mimeType || 'image/jpeg',
         })
-        const processedPath = `${params.id}/processed-${Date.now()}-${photo.name}`
+        const processedPath = `${userId}/${params.id}/processed-${timestamp}-${photo.name}`
 
         const { error: processedUploadError } = await supabase.storage
           .from('photos')
@@ -162,6 +221,20 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         const {
           data: { publicUrl: processedUrl },
         } = supabase.storage.from('photos').getPublicUrl(processedPath)
+
+        // Insert photo record in database
+        const { error: insertError } = await supabase
+          .from('photos')
+          .insert({
+            project_id: params.id,
+            original_url: originalUrl,
+            processed_url: processedUrl,
+            status: 'completed',
+          })
+
+        if (insertError) {
+          console.error('Error saving photo record:', insertError)
+        }
 
         setProcessing((prev) =>
           prev.map((p) => (p.id === photo.id ? { ...p, progress: 100 } : p))
@@ -201,6 +274,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   }
 
   const relightPhoto = async (photo: ResultPhoto, relightType: 'relight-dawn' | 'relight-day' | 'relight-night') => {
+    if (!userId) return
     setRelightingId(photo.id)
     try {
       const res = await fetch('/api/process', {
@@ -221,7 +295,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       const processedBlob = new Blob([processedBytes], {
         type: data.mimeType || 'image/jpeg',
       })
-      const processedPath = `${params.id}/relight-${Date.now()}-${photo.name}`
+      const processedPath = `${userId}/${params.id}/relight-${Date.now()}-${photo.name}`
 
       const { error: uploadErr } = await supabase.storage
         .from('photos')
@@ -249,6 +323,14 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     { value: 'renovation', label: 'Visualizar reforma', desc: 'Transforma el espacio según tu idea' },
   ]
 
+  if (loadingProject) {
+    return (
+      <div className="min-h-screen bg-surface flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-surface">
       <nav className="sticky top-0 z-50 bg-surface/80 backdrop-blur-xl border-b border-surface-border">
@@ -267,9 +349,15 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          <h1 className="text-lg font-semibold">Casa Polanco 42</h1>
-          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400">
-            Activo
+          <h1 className="text-lg font-semibold">{project?.name || 'Proyecto'}</h1>
+          <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+            project?.status === 'processing'
+              ? 'bg-amber-500/10 text-amber-400'
+              : project?.status === 'archived'
+                ? 'bg-gray-500/10 text-gray-400'
+                : 'bg-emerald-500/10 text-emerald-400'
+          }`}>
+            {project?.status === 'processing' ? 'Procesando' : project?.status === 'archived' ? 'Archivado' : 'Activo'}
           </span>
         </div>
       </nav>
@@ -553,24 +641,26 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                           Descargar
                         </a>
                       </div>
-                      {/* Relighting buttons */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500 mr-1">Relighting:</span>
-                        {([
-                          { type: 'relight-dawn' as const, label: 'Amanecer', icon: '~' },
-                          { type: 'relight-day' as const, label: 'Día', icon: '~' },
-                          { type: 'relight-night' as const, label: 'Noche', icon: '~' },
-                        ]).map((rl) => (
-                          <button
-                            key={rl.type}
-                            onClick={() => relightPhoto(photo, rl.type)}
-                            disabled={relightingId === photo.id}
-                            className="text-xs px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:border-accent/50 hover:text-accent text-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {relightingId === photo.id ? 'Procesando...' : rl.label}
-                          </button>
-                        ))}
-                      </div>
+                      {/* Relighting buttons - only show if we have base64 data (newly processed photos) */}
+                      {photo.originalBase64 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 mr-1">Relighting:</span>
+                          {([
+                            { type: 'relight-dawn' as const, label: 'Amanecer' },
+                            { type: 'relight-day' as const, label: 'Día' },
+                            { type: 'relight-night' as const, label: 'Noche' },
+                          ]).map((rl) => (
+                            <button
+                              key={rl.type}
+                              onClick={() => relightPhoto(photo, rl.type)}
+                              disabled={relightingId === photo.id}
+                              className="text-xs px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:border-accent/50 hover:text-accent text-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {relightingId === photo.id ? 'Procesando...' : rl.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
