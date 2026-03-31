@@ -1,26 +1,35 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
 export default function AuthCallback() {
-  const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event, session) => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
       if (session) {
-        router.replace('/dashboard')
+        window.location.href = '/dashboard'
       } else {
-        router.replace('/auth')
+        // Espera un momento y reintenta — el token OAuth puede tardar
+        setTimeout(async () => {
+          const { data: { session: session2 } } = await supabase.auth.getSession()
+          if (session2) {
+            window.location.href = '/dashboard'
+          } else {
+            window.location.href = '/auth'
+          }
+        }, 2000)
       }
-    })
+    }
+    checkSession()
   }, [])
 
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center">
+    <div className="min-h-screen bg-surface flex flex-col items-center justify-center gap-4">
       <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      <p className="text-gray-400 text-sm">Iniciando sesión...</p>
     </div>
   )
 }
