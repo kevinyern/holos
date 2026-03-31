@@ -20,8 +20,8 @@ function getPromptAndStrength(
   switch (processType) {
     case 'professional':
       return {
-        strength: 0.78,
-        prompt: `Professional real estate photography. Same room, same angle, same furniture. DRAMATICALLY improve: lighting (bright, natural, airy), colors (vivid but realistic), sharpness (crisp details), perspective (straight vertical lines). REMOVE all clutter, cables, random objects. CLEAN all surfaces. Make the space look STUNNING — like a luxury property listing photo. Natural light flooding in, clean whites, warm tones. The result must look WOW compared to the original. Photorealistic, high-end, magazine quality. No CGI. No fake elements.`,
+        strength: 0.42,
+        prompt: `Professional real estate photo. Exact same room, exact same furniture, exact same angle. Only improve: white balance (clean neutral whites), exposure (bright and airy), color grading (warm natural tones), sharpness (crisp details), remove noise. Do NOT move or change any furniture. Do NOT add or remove objects. Photorealistic enhancement only. Result must look like the same photo taken by a professional photographer with a DSLR camera. Clean, bright, inviting, ready for property listing.`,
       }
 
     case 'declutter':
