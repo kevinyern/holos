@@ -23,6 +23,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setLoading(false)
       }
     })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user)
+        setLoading(false)
+      } else {
+        router.replace('/auth')
+      }
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   async function handleSignOut() {
