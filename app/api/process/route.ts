@@ -72,11 +72,16 @@ export async function POST(req: NextRequest) {
     }
 
     const { prompt, strength } = getPromptAndStrength(processType as ProcessType, userRequest)
-    const imageUrl = `data:${mimeType || 'image/jpeg'};base64,${imgData}`
+
+    // Upload image to fal storage to get a public URL (fal.ai doesn't accept data URLs)
+    const buffer = Buffer.from(imgData, 'base64')
+    const blob = new Blob([buffer], { type: mimeType || 'image/jpeg' })
+    const file = new File([blob], 'image.jpg', { type: mimeType || 'image/jpeg' })
+    const uploadedUrl = await fal.storage.upload(file)
 
     const result = await fal.subscribe('fal-ai/flux/dev/image-to-image', {
       input: {
-        image_url: imageUrl,
+        image_url: uploadedUrl,
         prompt,
         strength,
       },
