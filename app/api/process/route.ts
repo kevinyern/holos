@@ -1,6 +1,8 @@
 import { fal } from '@fal-ai/client'
 import { NextRequest, NextResponse } from 'next/server'
 
+export const maxDuration = 60 // Vercel Pro allows up to 300s, Hobby up to 60s
+
 fal.config({ credentials: process.env.FAL_KEY! })
 
 type ProcessType =
