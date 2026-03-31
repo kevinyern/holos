@@ -16,7 +16,7 @@ type ProcessType =
 function getPrompt(processType: ProcessType, userRequest?: string): string {
   switch (processType) {
     case 'professional':
-      return `Professional real estate photo. Exact same room, exact same furniture, exact same angle. Only improve: white balance (clean neutral whites), exposure (bright and airy), color grading (warm natural tones), sharpness (crisp details), remove noise. Do NOT move or change any furniture. Do NOT add or remove objects. Photorealistic enhancement only. Result must look like the same photo taken by a professional photographer with a DSLR camera. Clean, bright, inviting, ready for property listing.`
+      return `Transform this room photo into a professional real estate listing photo. Keep the exact same room, furniture layout, and camera angle. REQUIRED: Remove ALL clutter — clothes, bottles, random objects, cables, mess on surfaces. Make every surface clean and tidy. Straighten and align furniture and objects. ENHANCE: Improve lighting to bright and airy, fix white balance to clean neutral whites, boost colors subtly, increase sharpness. The result must show the same room but perfectly clean, tidy, and professionally lit — like it was staged and shot by a professional real estate photographer. Photorealistic, no CGI, no fake elements added.`
 
     case 'declutter':
       return `Clean and declutter this interior space for a property listing. Remove visible clutter, random objects, cables, and mess. Organize surfaces like tables, countertops, and shelves. Make the space feel breathable, clean, minimal, and attractive. Keep the same room layout and furniture. Realistic, neutral, looks like a well-kept home ready to sell.`
