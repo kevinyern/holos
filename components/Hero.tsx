@@ -26,11 +26,11 @@ export default function Hero() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.1] mb-6"
         >
-          Convierte fotos mediocres{' '}
+          De foto cutre{' '}
           <br className="hidden md:block" />
-          en{' '}
+          a{' '}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-accent-light">
-            ventas reales
+            imagen premium
           </span>
         </motion.h1>
 
@@ -40,8 +40,7 @@ export default function Hero() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed"
         >
-          IA que transforma las fotos de tus propiedades en imágenes profesionales,
-          amuebla habitaciones vacías y crea tours 3D. Todo en minutos.
+          Sube una foto de móvil. La IA la devuelve limpia, ordenada y lista para vender.
         </motion.p>
 
         <motion.div
@@ -51,10 +50,10 @@ export default function Hero() {
           className="flex flex-col sm:flex-row gap-4 justify-center"
         >
           <a
-            href="#pricing"
+            href="/auth"
             className="bg-accent hover:bg-accent-light text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:shadow-[0_0_30px_rgba(59,130,246,0.3)]"
           >
-            Empieza gratis →
+            Sube y mira el resultado →
           </a>
           <a
             href="#como-funciona"
