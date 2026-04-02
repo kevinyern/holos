@@ -160,35 +160,53 @@ export async function POST(req: NextRequest) {
 
     const prompt = getPrompt(processType as ProcessType, userRequest, style, extras)
 
-    const modelId = requestedModel || 'gemini-3-pro-image-preview'
-    const model = genAI.getGenerativeModel({ model: modelId })
+    const MODELS = [
+      requestedModel || 'gemini-3-pro-image-preview',
+      'gemini-2.0-flash-preview-image-generation',
+    ].filter((v, i, a) => a.indexOf(v) === i)
 
-    const result = await model.generateContent({
-      contents: [{
-        role: 'user',
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: mimeType || 'image/jpeg', data: imgData } }
-        ]
-      }],
-      generationConfig: {
-        responseModalities: ['IMAGE', 'TEXT'],
-      } as any
-    })
+    let lastError = 'No image returned'
 
-    const parts = result.response.candidates?.[0]?.content?.parts
-    if (parts) {
-      for (const part of parts) {
-        if ((part as any).inlineData) {
-          return NextResponse.json({
-            image: (part as any).inlineData.data,
-            mimeType: (part as any).inlineData.mimeType,
-          })
+    for (const modelId of MODELS) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelId })
+        const result = await model.generateContent({
+          contents: [{
+            role: 'user',
+            parts: [
+              { text: prompt },
+              { inlineData: { mimeType: mimeType || 'image/jpeg', data: imgData } }
+            ]
+          }],
+          generationConfig: {
+            responseModalities: ['IMAGE', 'TEXT'],
+          } as any
+        })
+
+        const candidate = result.response.candidates?.[0]
+        // IMAGE_RECITATION or empty content — try next model
+        if (!candidate?.content?.parts?.length) {
+          lastError = `Model ${modelId} returned no content`
+          continue
         }
+
+        for (const part of candidate.content.parts) {
+          if ((part as any).inlineData) {
+            return NextResponse.json({
+              image: (part as any).inlineData.data,
+              mimeType: (part as any).inlineData.mimeType,
+            })
+          }
+        }
+
+        lastError = `Model ${modelId} returned no image part`
+      } catch (modelErr: any) {
+        lastError = modelErr.message || `Model ${modelId} failed`
+        continue
       }
     }
 
-    return NextResponse.json({ error: 'No image returned from Gemini' }, { status: 500 })
+    return NextResponse.json({ error: lastError }, { status: 500 })
   } catch (error: any) {
     console.error('Process error:', error)
     return NextResponse.json(
