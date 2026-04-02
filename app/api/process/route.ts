@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
       if (rpcError) {
         await supabaseAdmin.from('users').update({
           photos_used: (userData.photos_used ?? 0) + 1,
-        }).eq('id', authUser.id).catch(() => {})
+        }).eq('id', authUser.id)
       }
     }
 
