@@ -23,10 +23,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Si tiene sesión y está en la landing → dashboard
-  if (user && pathname === '/') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
+  // Si tiene sesión y está en la landing → NO redirigir, dejar ver la landing
 
   // Si tiene sesión y está en auth → dashboard
   if (user && pathname === '/auth') {
