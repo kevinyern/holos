@@ -93,10 +93,12 @@ function ResultSlider({ originalUrl, processedUrl, name }: { originalUrl: string
     >
       {/* Processed (background) */}
       <img src={processedUrl} alt={`Mejorada - ${name}`} className="absolute inset-0 w-full h-full object-cover" loading="lazy" decoding="async" />
-      {/* Original (clipped) */}
-      <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}>
-        <img src={originalUrl} alt={`Original - ${name}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
-      </div>
+      {/* Original (clipped) — only if originalUrl exists */}
+      {originalUrl && (
+        <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}>
+          <img src={originalUrl} alt={`Original - ${name}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+        </div>
+      )}
       {/* Divider line */}
       <div className="absolute top-0 bottom-0 w-[2px] bg-white shadow-[0_0_10px_rgba(255,255,255,0.7)] z-10" style={{ left: `${position}%` }}>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center">
