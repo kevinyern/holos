@@ -117,22 +117,18 @@ function FAQSection() {
 
 export default function Pricing() {
   const [loading, setLoading] = React.useState<string | null>(null)
-  const [priceIds, setPriceIds] = React.useState<Record<string, string>>({})
-
-  React.useEffect(() => {
-    fetch('/api/config')
-      .then((res) => res.json())
-      .then((data) => setPriceIds(data))
-      .catch(() => {})
-  }, [])
+  const priceIds: Record<string, string> = {
+    starter: 'price_1THUl7E34bxXGSTLzCwc119N',
+    pro: 'price_1THUlYE34bxXGSTLvOyUVl9E',
+    agency: 'price_1THUm1E34bxXGSTLSxaVRSnF',
+  }
 
   const checkout = async (planKey: string) => {
     setLoading(planKey)
     try {
       const priceId = priceIds[planKey]
       if (!priceId) {
-        alert('Error: precio no configurado')
-        setLoading(null)
+        window.location.href = '/auth?next=/pricing'
         return
       }
       const res = await fetch('/api/stripe/checkout', {
@@ -141,13 +137,15 @@ export default function Pricing() {
         body: JSON.stringify({ priceId }),
       })
       const data = await res.json()
-      if (data.url) {
+      if (data.redirect) {
+        window.location.href = data.redirect
+      } else if (data.url) {
         window.location.href = data.url
       } else {
-        alert('Error: ' + (data.error || 'Sin respuesta de Stripe'))
+        window.location.href = '/auth?next=/pricing'
       }
     } catch (e) {
-      alert('Error de conexion. Intentalo de nuevo.')
+      window.location.href = '/auth?next=/pricing'
     }
     setLoading(null)
   }

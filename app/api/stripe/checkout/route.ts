@@ -35,7 +35,8 @@ export async function POST(req: NextRequest) {
     const userId = user?.id || ''
 
     if (!userId) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+      // Redirect to auth instead of erroring
+      return NextResponse.json({ redirect: '/auth?next=/pricing' }, { status: 200 })
     }
 
     const session = await stripe.checkout.sessions.create({
