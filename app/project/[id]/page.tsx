@@ -225,7 +225,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
       const processedBytes = Uint8Array.from(atob(data.image), (c) => c.charCodeAt(0))
       const processedBlob = new Blob([processedBytes], { type: data.mimeType || 'image/jpeg' })
-      const processedPath = `${userId}/${params.id}/edit-${Date.now()}-${photo.name}`
+      const processedPath = `${userId}/${params.id}/edit-${Date.now()}-${sanitizeName(photo.name)}`
 
       const { error: uploadErr } = await supabase.storage
         .from('PHOTOS')
@@ -407,6 +407,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     return () => clearInterval(interval)
   }, [marbleStatus, marbleOperationId])
 
+  const sanitizeName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, '_').toLowerCase()
+
   const formatSize = (bytes: number) => {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -512,7 +514,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             fileToUpload = photo.file
           }
         }
-        const originalPath = `${userId}/${params.id}/original-${timestamp}-${photo.name}`
+        const originalPath = `${userId}/${params.id}/original-${timestamp}-${sanitizeName(photo.name)}`
         const { error: uploadError, data: uploadData } = await supabase.storage
           .from('PHOTOS')
           .upload(originalPath, fileToUpload, { upsert: true })
@@ -570,7 +572,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         const processedBlob = new Blob([processedBytes], {
           type: data.mimeType || 'image/jpeg',
         })
-        const processedPath = `${userId}/${params.id}/processed-${timestamp}-${photo.name}`
+        const processedPath = `${userId}/${params.id}/processed-${timestamp}-${sanitizeName(photo.name)}`
 
         const { error: processedUploadError } = await supabase.storage
           .from('PHOTOS')
@@ -665,7 +667,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       const processedBlob = new Blob([processedBytes], {
         type: data.mimeType || 'image/jpeg',
       })
-      const processedPath = `${userId}/${params.id}/relight-${Date.now()}-${photo.name}`
+      const processedPath = `${userId}/${params.id}/relight-${Date.now()}-${sanitizeName(photo.name)}`
 
       const { error: uploadErr } = await supabase.storage
         .from('PHOTOS')
