@@ -1,9 +1,18 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 
 export const maxDuration = 60
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+
+const PLAN_QUOTAS: Record<string, number> = {
+  free: 3,
+  starter: 150,
+  pro: 750,
+  agency: 2000,
+}
 
 type ProcessType =
   | 'professional'
@@ -13,10 +22,34 @@ type ProcessType =
   | 'relight-day'
   | 'relight-night'
 
-function getPrompt(processType: ProcessType, userRequest?: string): string {
+function getPrompt(processType: ProcessType, userRequest?: string, style?: string, extras?: string[]): string {
   switch (processType) {
-    case 'professional':
-      return `Transform this room photo into a professional real estate listing photo. Keep the exact same room, furniture layout, and camera angle. REQUIRED: Remove ALL clutter — clothes, bottles, random objects, cables, mess on surfaces. Make every surface clean and tidy. Straighten and align furniture and objects. ENHANCE: Improve lighting to bright and airy, fix white balance to clean neutral whites, boost colors subtly, increase sharpness. The result must show the same room but perfectly clean, tidy, and professionally lit — like it was staged and shot by a professional real estate photographer. Photorealistic, no CGI, no fake elements added.`
+    case 'professional': {
+      const styleLine = style && style !== 'none'
+        ? `- Decorative style: ${style}`
+        : ''
+      const extrasLines = extras && extras.length > 0
+        ? extras.map((e) => `- ${e}`).join('\n')
+        : ''
+
+      return `You are a professional real estate photo retoucher. Enhance this photo following these rules:
+
+STRUCTURE — NEVER CHANGE:
+- Keep 100% identical: walls, doors, windows, stairs, ceiling height, floor plan, room shape
+- Same camera angle, framing, perspective
+- Never add or remove architectural elements
+- Never invent furniture or objects not visible in the original
+
+ENHANCEMENTS TO APPLY:
+- Fix surfaces: clean walls, repair plaster if damaged, paint if needed
+- Natural bright daylight lighting, soft shadows, airy feel
+- Remove clutter, dirt, construction debris
+- Correct white balance and exposure
+${styleLine}
+${extrasLines}
+
+OUTPUT: Photorealistic professional real estate photograph. Same room. Better version.`
+    }
 
     case 'declutter':
       return `Clean and declutter this interior space for a property listing. Remove visible clutter, random objects, cables, and mess. Organize surfaces like tables, countertops, and shelves. Make the space feel breathable, clean, minimal, and attractive. Keep the same room layout and furniture. Realistic, neutral, looks like a well-kept home ready to sell.`
@@ -37,9 +70,83 @@ function getPrompt(processType: ProcessType, userRequest?: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    // --- Auth: get userId from Supabase session (not from body) ---
+    const supabaseAuth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return req.cookies.getAll() },
+          setAll() {},
+        },
+      }
+    )
+
+    const { data: { user: authUser } } = await supabaseAuth.auth.getUser()
+    if (!authUser) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+
+    // --- Quota guard ---
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('plan, photos_used, quota_reset_at')
+      .eq('id', authUser.id)
+      .single()
+
+    if (userError || !userData) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Reset quota if period expired
+    if (new Date(userData.quota_reset_at) <= new Date()) {
+      await supabaseAdmin.from('users').update({
+        photos_used: 0,
+        quota_reset_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      }).eq('id', authUser.id)
+      userData.photos_used = 0
+    }
+
+    const quota = PLAN_QUOTAS[userData.plan] ?? 3
+    if (userData.photos_used >= quota) {
+      return NextResponse.json({
+        error: 'Quota exceeded',
+        plan: userData.plan,
+        used: userData.photos_used,
+      }, { status: 429 })
+    }
+
+    // Increment photos_used BEFORE calling Gemini (prevent race conditions)
+    const { error: rpcError } = await supabaseAdmin.rpc('increment_photos_used', { uid: authUser.id })
+    if (rpcError) {
+      await supabaseAdmin.from('users').update({
+        photos_used: userData.photos_used + 1,
+      }).eq('id', authUser.id)
+    }
+
+    // --- Original process logic ---
     const body = await req.json()
-    const { image, imageBase64, mimeType, processType = 'professional', userRequest } = body
-    const imgData = image || imageBase64
+    const { image, imageBase64, imageUrl, mimeType, processType = 'professional', userRequest, style, extras, model: requestedModel } = body
+
+    let imgData = image || imageBase64
+
+    if (!imgData && imageUrl) {
+      const imgRes = await fetch(imageUrl)
+      if (!imgRes.ok) {
+        console.error(`Failed to fetch image from URL: ${imageUrl} — status ${imgRes.status}`)
+        return NextResponse.json({ error: `No se pudo cargar la imagen (${imgRes.status}). Vuelve a subir la foto.` }, { status: 400 })
+      }
+      const buf = await imgRes.arrayBuffer()
+      if (buf.byteLength === 0) {
+        return NextResponse.json({ error: 'La imagen está vacía. Vuelve a subir la foto.' }, { status: 400 })
+      }
+      imgData = Buffer.from(buf).toString('base64')
+    }
 
     if (!imgData) {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 })
@@ -52,9 +159,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const prompt = getPrompt(processType as ProcessType, userRequest)
+    const prompt = getPrompt(processType as ProcessType, userRequest, style, extras)
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-image-preview' })
+    const modelId = requestedModel || 'gemini-3-pro-image-preview'
+    const model = genAI.getGenerativeModel({ model: modelId })
 
     const result = await model.generateContent({
       contents: [{

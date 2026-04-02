@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Logo from '@/components/Logo'
 
 const MOCK_USER = {
-  email: 'rafa@holos.app',
+  email: 'hola@photoagent.pro',
   plan: 'pro',
   created_at: '2026-02-15',
 }
@@ -22,7 +22,7 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-surface">
       {/* Reuse dashboard nav */}
       <nav className="sticky top-0 z-50 bg-surface/80 backdrop-blur-xl border-b border-surface-border">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center gap-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4 sm:gap-8">
           <Link href="/dashboard">
             <Logo className="text-xl" />
           </Link>
@@ -37,7 +37,7 @@ export default function SettingsPage() {
         </div>
       </nav>
 
-      <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         {/* Profile section */}
         <div className="bg-surface-card border border-surface-border rounded-xl p-8">
           <h2 className="text-lg font-semibold mb-6">Perfil</h2>

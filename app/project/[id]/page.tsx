@@ -2,9 +2,14 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
+import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase'
+import { useToast } from '@/components/Toast'
 
-const TABS = ['Upload', 'Procesando', 'Resultados'] as const
+const Pascal3DEditor = dynamic(() => import('@/components/Pascal3DEditor'), { ssr: false })
+
+const TABS = ['Subir fotos', 'Procesando', 'Resultados', 'Editor 3D', 'Tour 3D'] as const
 type Tab = (typeof TABS)[number]
 type ProcessMode = 'professional' | 'renovation'
 
@@ -19,6 +24,7 @@ interface ProcessingPhoto {
   id: string
   name: string
   progress: number
+  previewUrl?: string
 }
 
 interface ResultPhoto {
@@ -36,26 +42,202 @@ interface ProjectData {
   status: string
 }
 
+// Tooltip component for chips
+function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
+  const [show, setShow] = useState(false)
+  return (
+    <div className="relative" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+      {children}
+      <AnimatePresence>
+        {show && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-surface-border rounded-lg text-xs text-gray-200 whitespace-nowrap z-30 pointer-events-none shadow-xl"
+          >
+            {text}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 border-r border-b border-surface-border rotate-45 -mt-1" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// Before/After slider for results
+function ResultSlider({ originalUrl, processedUrl, name }: { originalUrl: string; processedUrl: string; name: string }) {
+  const [position, setPosition] = useState(50)
+  const [hasInteracted, setHasInteracted] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const dragging = useRef(false)
+
+  const update = useCallback((clientX: number) => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    setPosition(Math.max(2, Math.min(98, ((clientX - rect.left) / rect.width) * 100)))
+    setHasInteracted(true)
+  }, [])
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative aspect-[4/3] sm:aspect-[16/10] overflow-hidden cursor-col-resize select-none rounded-t-xl"
+      onMouseDown={(e) => { dragging.current = true; update(e.clientX) }}
+      onMouseMove={(e) => { if (dragging.current) update(e.clientX) }}
+      onMouseUp={() => { dragging.current = false }}
+      onMouseLeave={() => { dragging.current = false }}
+      onTouchStart={(e) => { e.preventDefault(); update(e.touches[0].clientX) }}
+      onTouchMove={(e) => { e.preventDefault(); update(e.touches[0].clientX) }}
+    >
+      {/* Processed (background) */}
+      <img src={processedUrl} alt={`Mejorada - ${name}`} className="absolute inset-0 w-full h-full object-cover" loading="lazy" decoding="async" />
+      {/* Original (clipped) */}
+      <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}>
+        <img src={originalUrl} alt={`Original - ${name}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+      </div>
+      {/* Divider line */}
+      <div className="absolute top-0 bottom-0 w-[2px] bg-white shadow-[0_0_10px_rgba(255,255,255,0.7)] z-10" style={{ left: `${position}%` }}>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center">
+          <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l-3 3 3 3M16 9l3 3-3 3" />
+          </svg>
+        </div>
+      </div>
+      {/* Labels */}
+      <span className="absolute top-3 left-3 z-20 bg-black/60 backdrop-blur-sm text-white text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wide">Original</span>
+      <span className="absolute top-3 right-3 z-20 bg-accent/80 backdrop-blur-sm text-white text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wide">Mejorada</span>
+      {/* Drag hint */}
+      {!hasInteracted && (
+        <motion.div
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-4 py-2 rounded-full"
+          animate={{ x: [0, 10, -10, 0] }}
+          transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l-3 3 3 3M16 9l3 3-3 3" />
+          </svg>
+          Arrastra para comparar
+        </motion.div>
+      )}
+    </div>
+  )
+}
+
 export default function ProjectPage({ params }: { params: { id: string } }) {
-  const [activeTab, setActiveTab] = useState<Tab>('Upload')
+  const [activeTab, setActiveTab] = useState<Tab>('Subir fotos')
   const [uploads, setUploads] = useState<UploadedPhoto[]>([])
   const [processing, setProcessing] = useState<ProcessingPhoto[]>([])
   const [results, setResults] = useState<ResultPhoto[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [processError, setProcessError] = useState<string | null>(null)
   const [processMode, setProcessMode] = useState<ProcessMode>('professional')
   const [renovationText, setRenovationText] = useState('')
+  const [selectedStyle, setSelectedStyle] = useState('none')
+  const [selectedExtras, setSelectedExtras] = useState<string[]>([])
   const [relightingId, setRelightingId] = useState<string | null>(null)
   const [project, setProject] = useState<ProjectData | null>(null)
   const [loadingProject, setLoadingProject] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+  const [newResultIds, setNewResultIds] = useState<Set<string>>(new Set())
+  const [photoErrors, setPhotoErrors] = useState<Map<string, string>>(new Map())
+  const [selectedModel, setSelectedModel] = useState('gemini-3-pro-image-preview')
+  // Pascal Editor state
+  const [editingPhotoId, setEditingPhotoId] = useState<string | null>(null)
+  const [editPanelText, setEditPanelText] = useState('')
+  const [editApplying, setEditApplying] = useState(false)
+  const [photoHistories, setPhotoHistories] = useState<Record<string, string[]>>({})
+  // Editor 3D state
+  const [editor3dScreenshot, setEditor3dScreenshot] = useState<string | null>(null)
+  const [editor3dSending, setEditor3dSending] = useState(false)
+  // Marble 3D Tour state
+  const [marbleStatus, setMarbleStatus] = useState<'idle' | 'processing' | 'completed' | 'failed'>('idle')
+  const [marbleWorldId, setMarbleWorldId] = useState<string | null>(null)
+  const [marbleOperationId, setMarbleOperationId] = useState<string | null>(null)
+  const [marbleProgress, setMarbleProgress] = useState(0)
+  const [marbleError, setMarbleError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const marbleFileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
+  const { addToast } = useToast()
 
   useEffect(() => {
-    fetch('/api/ensure-bucket', { method: 'POST' }).catch(() => {})
     loadProjectAndPhotos()
   }, [])
+
+  // Load version histories from localStorage when results change
+  useEffect(() => {
+    if (results.length === 0) return
+    const histories: Record<string, string[]> = {}
+    results.forEach((r) => {
+      try {
+        const stored = localStorage.getItem(`holos_history_${r.id}`)
+        histories[r.id] = stored ? (JSON.parse(stored) as string[]) : []
+      } catch {
+        histories[r.id] = []
+      }
+    })
+    setPhotoHistories(histories)
+  }, [results.length])
+
+  function savePhotoHistory(photoId: string, urls: string[]) {
+    const trimmed = urls.slice(0, 4)
+    localStorage.setItem(`holos_history_${photoId}`, JSON.stringify(trimmed))
+    setPhotoHistories((prev) => ({ ...prev, [photoId]: trimmed }))
+  }
+
+  const applyEdit = async () => {
+    if (!editingPhotoId || !editPanelText.trim() || !userId) return
+    const photo = results.find((r) => r.id === editingPhotoId)
+    if (!photo) return
+    setEditApplying(true)
+    try {
+      // Save current version to history before replacing
+      const currentHistory = photoHistories[editingPhotoId] || []
+      savePhotoHistory(editingPhotoId, [photo.processedUrl, ...currentHistory])
+
+      const res = await fetch('/api/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: photo.processedUrl,
+          processType: 'renovation',
+          userRequest: editPanelText.trim(),
+        }),
+      })
+      if (!res.ok) throw new Error('Edit failed')
+      const data = await res.json()
+      if (!data.image) throw new Error('No image returned')
+
+      const processedBytes = Uint8Array.from(atob(data.image), (c) => c.charCodeAt(0))
+      const processedBlob = new Blob([processedBytes], { type: data.mimeType || 'image/jpeg' })
+      const processedPath = `${userId}/${params.id}/edit-${Date.now()}-${photo.name}`
+
+      const { error: uploadErr } = await supabase.storage
+        .from('PHOTOS')
+        .upload(processedPath, processedBlob, { upsert: true })
+      if (uploadErr) throw uploadErr
+
+      const { data: { publicUrl: newUrl } } = supabase.storage
+        .from('PHOTOS')
+        .getPublicUrl(processedPath)
+
+      await supabase.from('photos').update({ processed_url: newUrl }).eq('id', editingPhotoId)
+
+      setResults((prev) =>
+        prev.map((r) => (r.id === editingPhotoId ? { ...r, processedUrl: newUrl } : r))
+      )
+      setEditingPhotoId(null)
+      setEditPanelText('')
+      addToast('Edición aplicada', 'success')
+    } catch (err) {
+      console.error('Edit error:', err)
+      addToast('Error al aplicar la edición', 'error')
+    } finally {
+      setEditApplying(false)
+    }
+  }
 
   async function loadProjectAndPhotos() {
     setLoadingProject(true)
@@ -100,12 +282,113 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           }))
         setResults(loadedResults)
       }
+
+      // Load existing marble world
+      const { data: marbleWorld } = await supabase
+        .from('marble_worlds')
+        .select('*')
+        .eq('project_id', params.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (marbleWorld) {
+        if (marbleWorld.status === 'completed' && marbleWorld.world_id) {
+          setMarbleStatus('completed')
+          setMarbleWorldId(marbleWorld.world_id)
+        } else if (marbleWorld.status === 'processing') {
+          setMarbleStatus('processing')
+          setMarbleOperationId(marbleWorld.operation_id)
+        } else if (marbleWorld.status === 'failed') {
+          setMarbleStatus('failed')
+        }
+      }
     } catch (err) {
       console.error('Error:', err)
     } finally {
       setLoadingProject(false)
     }
   }
+
+  // Marble 3D Tour functions
+  const handleMarbleUpload = async (file: File) => {
+    if (!file || !file.type.startsWith('image/')) return
+    setMarbleStatus('processing')
+    setMarbleProgress(0)
+    setMarbleError(null)
+    setActiveTab('Tour 3D')
+
+    try {
+      const reader = new FileReader()
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string
+          resolve(result.split(',')[1])
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+
+      const res = await fetch('/api/marble/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          propertyId: params.id,
+          imageBase64: base64,
+          mimeType: file.type,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to generate 3D tour')
+      }
+
+      const { operationId } = await res.json()
+      setMarbleOperationId(operationId)
+    } catch (err: any) {
+      console.error('Marble upload error:', err)
+      setMarbleStatus('failed')
+      setMarbleError(err.message || 'Error al generar el tour 3D')
+    }
+  }
+
+  // Poll marble status
+  useEffect(() => {
+    if (marbleStatus !== 'processing' || !marbleOperationId) return
+
+    const opId = marbleOperationId.replace('operations/', '')
+    const startTime = Date.now()
+    const estimatedDuration = 5 * 60 * 1000 // 5 minutes
+
+    const interval = setInterval(async () => {
+      // Update progress bar
+      const elapsed = Date.now() - startTime
+      setMarbleProgress(Math.min(95, (elapsed / estimatedDuration) * 100))
+
+      try {
+        const res = await fetch(`/api/marble/status/${opId}`)
+        if (!res.ok) return
+
+        const data = await res.json()
+        if (data.done) {
+          if (data.error) {
+            setMarbleStatus('failed')
+            setMarbleError(data.error.message || 'Error al generar el tour')
+          } else {
+            setMarbleStatus('completed')
+            setMarbleWorldId(data.worldId)
+            setMarbleProgress(100)
+          }
+          clearInterval(interval)
+        }
+      } catch (err) {
+        console.error('Marble poll error:', err)
+      }
+    }, 10000)
+
+    return () => clearInterval(interval)
+  }, [marbleStatus, marbleOperationId])
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
@@ -140,13 +423,31 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     setUploads((prev) => prev.filter((p) => p.id !== id))
   }
 
+  // Descarga forzada via blob (evita que el browser abra nueva pestaña)
+  const downloadPhoto = async (url: string, filename: string) => {
+    try {
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+    } catch {
+      window.open(url, '_blank')
+    }
+  }
+
   const fileToBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
       const img = new Image()
       const url = URL.createObjectURL(file)
       img.onload = () => {
         const canvas = document.createElement('canvas')
-        const MAX = 1920
+        const MAX = 600
         let { width, height } = img
         if (width > MAX || height > MAX) {
           if (width > height) { height = Math.round(height * MAX / width); width = MAX }
@@ -156,7 +457,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         canvas.height = height
         const ctx = canvas.getContext('2d')!
         ctx.drawImage(img, 0, 0, width, height)
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.50)
         URL.revokeObjectURL(url)
         resolve(dataUrl.split(',')[1])
       }
@@ -168,12 +469,13 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     if (uploads.length === 0 || !userId) return
     if (processMode === 'renovation' && !renovationText.trim()) return
     setIsProcessing(true)
+    setProcessError(null)
 
     const toProcess = [...uploads]
     setUploads([])
     setActiveTab('Procesando')
 
-    setProcessing(toProcess.map((p) => ({ id: p.id, name: p.name, progress: 0 })))
+    setProcessing(toProcess.map((p) => ({ id: p.id, name: p.name, progress: 0, previewUrl: URL.createObjectURL(p.file) })))
 
     for (const photo of toProcess) {
       try {
@@ -184,7 +486,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         const timestamp = Date.now()
         const originalPath = `${userId}/${params.id}/original-${timestamp}-${photo.name}`
         const { error: uploadError } = await supabase.storage
-          .from('photos')
+          .from('PHOTOS')
           .upload(originalPath, photo.file, { upsert: true })
 
         if (uploadError) throw uploadError
@@ -194,23 +496,19 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         } = supabase.storage.from('PHOTOS').getPublicUrl(originalPath)
 
         setProcessing((prev) =>
-          prev.map((p) => (p.id === photo.id ? { ...p, progress: 30 } : p))
-        )
-
-        const base64 = await fileToBase64(photo.file)
-
-        setProcessing((prev) =>
-          prev.map((p) => (p.id === photo.id ? { ...p, progress: 50 } : p))
+          prev.map((p) => (p.id === photo.id ? { ...p, progress: 40 } : p))
         )
 
         const res = await fetch('/api/process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            image: base64,
+            imageUrl: originalUrl,
             mimeType: photo.file.type,
             processType: processMode,
             userRequest: processMode === 'renovation' ? renovationText.trim() : undefined,
+            ...(processMode === 'professional' ? { style: selectedStyle !== 'none' ? selectedStyle : undefined, extras: selectedExtras.length > 0 ? selectedExtras : undefined } : {}),
+            ...(process.env.NODE_ENV === 'development' && selectedModel !== 'gemini-3-pro-image-preview' ? { model: selectedModel } : {}),
           }),
         })
 
@@ -218,9 +516,16 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           prev.map((p) => (p.id === photo.id ? { ...p, progress: 80 } : p))
         )
 
-        if (!res.ok) throw new Error('Processing failed')
+        if (!res.ok) {
+          const errBody = await res.text()
+          throw new Error(`Algo fue mal al procesar la foto. Intenta con otra imagen.`)
+        }
 
         const data = await res.json()
+
+        if (!data.image) {
+          throw new Error(`La IA no pudo generar el resultado. Prueba con otra foto.`)
+        }
 
         const processedBytes = Uint8Array.from(atob(data.image), (c) => c.charCodeAt(0))
         const processedBlob = new Blob([processedBytes], {
@@ -229,7 +534,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         const processedPath = `${userId}/${params.id}/processed-${timestamp}-${photo.name}`
 
         const { error: processedUploadError } = await supabase.storage
-          .from('photos')
+          .from('PHOTOS')
           .upload(processedPath, processedBlob, { upsert: true })
 
         if (processedUploadError) throw processedUploadError
@@ -238,7 +543,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           data: { publicUrl: processedUrl },
         } = supabase.storage.from('PHOTOS').getPublicUrl(processedPath)
 
-        // Insert photo record in database
         const { error: insertError } = await supabase
           .from('photos')
           .insert({
@@ -249,13 +553,14 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           })
 
         if (insertError) {
-          console.error('Error saving photo record:', insertError)
+          console.error('Error guardando foto en BD:', insertError.message, insertError.details)
         }
 
         setProcessing((prev) =>
           prev.map((p) => (p.id === photo.id ? { ...p, progress: 100 } : p))
         )
 
+        setNewResultIds((prev) => new Set(prev).add(photo.id))
         setResults((prev) => [
           ...prev,
           {
@@ -263,19 +568,24 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             name: photo.name,
             originalUrl,
             processedUrl,
-            originalBase64: base64,
+            originalBase64: '',
             originalMimeType: photo.file.type,
           },
         ])
+        addToast(`${photo.name} lista`, 'success')
 
         setTimeout(() => {
           setProcessing((prev) => prev.filter((p) => p.id !== photo.id))
         }, 600)
       } catch (err) {
-        console.error(`Error processing ${photo.name}:`, err)
+        const errMsg = err instanceof Error ? err.message : String(err)
+        console.error(`Error processing ${photo.name}:`, errMsg)
+        setProcessError(errMsg)
+        addToast(`Error con ${photo.name}`, 'error')
         setProcessing((prev) =>
           prev.map((p) => (p.id === photo.id ? { ...p, progress: -1 } : p))
         )
+        setPhotoErrors((prev) => new Map(prev).set(photo.id, errMsg))
         setTimeout(() => {
           setProcessing((prev) => prev.filter((p) => p.id !== photo.id))
         }, 3000)
@@ -285,7 +595,10 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     setIsProcessing(false)
 
     setTimeout(() => {
-      setActiveTab('Resultados')
+      setResults(prev => {
+        if (prev.length > 0) setActiveTab('Resultados')
+        return prev
+      })
     }, 800)
   }
 
@@ -293,27 +606,15 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     if (!userId) return
     setRelightingId(photo.id)
     try {
-      // Use existing base64 or fetch the processed (or original) image
-      let imgBase64 = photo.originalBase64
-      let imgMimeType = photo.originalMimeType || 'image/jpeg'
-      if (!imgBase64) {
-        const sourceUrl = photo.processedUrl || photo.originalUrl
-        const imgRes = await fetch(sourceUrl)
-        const buf = await imgRes.arrayBuffer()
-        const bytes = new Uint8Array(buf)
-        let binary = ''
-        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-        imgBase64 = btoa(binary)
-        const ct = imgRes.headers.get('content-type')
-        if (ct) imgMimeType = ct
-      }
+      // Usamos la URL directamente — el servidor fetchea la imagen (evita límite 4.5MB)
+      const sourceUrl = photo.processedUrl || photo.originalUrl
 
       const res = await fetch('/api/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          image: imgBase64,
-          mimeType: imgMimeType,
+          imageUrl: sourceUrl,
+          mimeType: photo.originalMimeType || 'image/jpeg',
           processType: relightType,
         }),
       })
@@ -329,8 +630,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       const processedPath = `${userId}/${params.id}/relight-${Date.now()}-${photo.name}`
 
       const { error: uploadErr } = await supabase.storage
-        .from('photos')
-        .upload(processedPath, processedBlob, { upsert: true })
+        .from('PHOTOS')
+          .upload(processedPath, processedBlob, { upsert: true })
 
       if (uploadErr) throw uploadErr
 
@@ -338,79 +639,121 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         data: { publicUrl: newUrl },
       } = supabase.storage.from('PHOTOS').getPublicUrl(processedPath)
 
+      await supabase
+        .from('photos')
+        .update({ processed_url: newUrl })
+        .eq('id', photo.id)
+
       setResults((prev) =>
         prev.map((r) => (r.id === photo.id ? { ...r, processedUrl: newUrl } : r))
       )
+      addToast('Iluminacion cambiada', 'success')
     } catch (err) {
       console.error('Relight error:', err)
+      addToast('Error al cambiar iluminacion. Intentalo de nuevo.', 'error')
     } finally {
       setRelightingId(null)
     }
   }
 
   const MODE_OPTIONS: { value: ProcessMode; label: string; desc: string }[] = [
-    { value: 'professional', label: 'Foto profesional', desc: 'Mejora calidad, luz, nitidez y limpieza' },
-    { value: 'renovation', label: 'Visualizar reforma', desc: 'Transforma el espacio según tu idea' },
+    {
+      value: 'professional',
+      label: 'Foto profesional',
+      desc: 'Mejora la foto automaticamente',
+    },
+    {
+      value: 'renovation',
+      label: 'Reforma virtual',
+      desc: 'Transforma el espacio',
+    },
   ]
+
+  const STYLE_OPTIONS = [
+    { value: 'none', label: 'Sin estilo definido', tip: 'La IA decide el mejor estilo segun la foto' },
+    { value: 'Modern and minimalist', label: 'Moderno', tip: 'Lineas limpias, colores neutros, espacios abiertos' },
+    { value: 'Nordic and cozy', label: 'Nordico', tip: 'Madera clara, textiles suaves, ambiente calido' },
+    { value: 'Warm Mediterranean', label: 'Mediterraneo', tip: 'Terracota, piedra natural, luz calida' },
+    { value: 'Urban industrial', label: 'Industrial', tip: 'Ladrillo visto, metal, hormigon' },
+  ]
+
+  const EXTRAS_OPTIONS = [
+    { value: 'Golden sunset lighting, warm tones', label: '☀️ Luz de atardecer', tip: 'Tonos dorados y calidos como al atardecer' },
+    { value: 'Night ambient atmosphere, interior lights on', label: '🌙 Ambiente nocturno', tip: 'Luces interiores encendidas, ambiente acogedor' },
+    { value: 'Add realistic green plants and vegetation', label: '🪴 Plantas', tip: 'Anade plantas verdes decorativas' },
+    { value: 'Add basic realistic furniture (sofa, rug, table) if space is empty', label: '🛋️ Muebles', tip: 'Sofa, mesa, alfombra si el espacio esta vacio' },
+    { value: 'Maximum quality finishes, premium materials, high-end look', label: '✨ Acabados premium', tip: 'Materiales de alta gama y acabados de lujo' },
+  ]
+
+  const toggleExtra = (value: string) => {
+    setSelectedExtras((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    )
+  }
+
+  const tabIcons: Record<string, React.ReactNode> = {
+    'Subir fotos': <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>,
+    'Procesando': <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" /></svg>,
+    'Resultados': <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    'Editor 3D': <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 7.125C2.25 6.504 2.754 6 3.375 6h6c.621 0 1.125.504 1.125 1.125v3.75c0 .621-.504 1.125-1.125 1.125h-6a1.125 1.125 0 01-1.125-1.125v-3.75zM14.25 8.625c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v8.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 01-1.125-1.125v-8.25zM3.75 16.125c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 01-1.125-1.125v-2.25z" /></svg>,
+    'Tour 3D': <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-2.25-1.313M21 7.5v2.25m0-2.25l-2.25 1.313M3 7.5l2.25-1.313M3 7.5l2.25 1.313M3 7.5v2.25m9 3l2.25-1.313M12 12.75l-2.25-1.313M12 12.75V15m0 6.75l2.25-1.313M12 21.75V19.5m0 2.25l-2.25-1.313m0-16.875L12 2.25l2.25 1.313M21 14.25v2.25l-2.25 1.313m-13.5 0L3 16.5v-2.25" /></svg>,
+  }
 
   if (loadingProject) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
+      <div className="min-h-screen bg-surface flex flex-col items-center justify-center gap-3">
         <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-gray-500">Cargando proyecto...</p>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-surface">
+      {/* Nav with breadcrumb */}
       <nav className="sticky top-0 z-50 bg-surface/80 backdrop-blur-xl border-b border-surface-border">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3 sm:gap-4">
           <Link
             href="/dashboard"
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white transition-colors shrink-0"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          <h1 className="text-lg font-semibold">{project?.name || 'Proyecto'}</h1>
-          <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-            project?.status === 'processing'
-              ? 'bg-amber-500/10 text-amber-400'
-              : project?.status === 'archived'
-                ? 'bg-gray-500/10 text-gray-400'
-                : 'bg-emerald-500/10 text-emerald-400'
-          }`}>
-            {project?.status === 'processing' ? 'Procesando' : project?.status === 'archived' ? 'Archivado' : 'Activo'}
-          </span>
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 min-w-0">
+            <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-300 transition-colors hidden sm:block shrink-0">
+              Mis proyectos
+            </Link>
+            <svg className="w-4 h-4 text-gray-600 shrink-0 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            <h1 className="text-lg font-semibold truncate">{project?.name || 'Proyecto'}</h1>
+          </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Tabs */}
-        <div className="flex gap-1 bg-surface-card border border-surface-border rounded-xl p-1 mb-8 w-fit">
+        <div className="flex gap-1 bg-surface-card border border-surface-border rounded-xl p-1 mb-8 w-full sm:w-fit overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors relative ${
+              className={`px-3 sm:px-5 py-2.5 min-h-[44px] rounded-lg text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap flex-1 sm:flex-none flex items-center justify-center gap-1.5 ${
                 activeTab === tab ? 'bg-accent text-white' : 'text-gray-400 hover:text-white'
               }`}
             >
+              <span className="hidden sm:inline">{tabIcons[tab]}</span>
               {tab}
               {tab === 'Procesando' && processing.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent text-[10px] font-bold rounded-full flex items-center justify-center">
+                <span className="w-4 h-4 bg-amber-500 text-[10px] font-bold rounded-full flex items-center justify-center ml-1">
                   {processing.length}
                 </span>
               )}
               {tab === 'Resultados' && results.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-[10px] font-bold rounded-full flex items-center justify-center">
+                <span className="w-4 h-4 bg-emerald-500 text-[10px] font-bold rounded-full flex items-center justify-center ml-1">
                   {results.length}
                 </span>
               )}
@@ -418,25 +761,46 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           ))}
         </div>
 
-        {/* Upload tab */}
-        {activeTab === 'Upload' && (
+        {/* ─── SUBIR FOTOS ─── */}
+        {activeTab === 'Subir fotos' && (
           <div>
-            {/* Photography tip */}
-            <div className="mb-6 bg-accent/5 border border-accent/20 rounded-xl px-5 py-4">
-              <p className="text-sm font-semibold text-white mb-3">Cómo sacar la mejor foto (esto marca la diferencia)</p>
-              <ul className="grid grid-cols-2 gap-1.5 text-sm text-gray-300 list-none">
-                <li>· Dispara en horizontal</li>
-                <li>· Altura: 1.2–1.5 metros</li>
-                <li>· Mantén el móvil recto</li>
-                <li>· Abre ventanas (luz natural)</li>
-                <li>· Enciende luces si es oscuro</li>
-                <li>· No uses zoom</li>
-                <li>· Desde las esquinas</li>
-                <li>· Quita el desorden antes</li>
-              </ul>
-              <p className="text-xs text-gray-500 mt-3">Si el input es malo, el resultado será mediocre. Una buena foto base = un resultado espectacular.</p>
+            {/* Mode selector */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-white mb-4">Que quieres hacer?</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {MODE_OPTIONS.map((mode) => (
+                  <button
+                    key={mode.value}
+                    onClick={() => setProcessMode(mode.value)}
+                    className={`text-left px-5 py-4 rounded-xl border-2 transition-all ${
+                      processMode === mode.value
+                        ? 'border-accent bg-accent/10 text-white'
+                        : 'border-surface-border bg-surface-card text-gray-400 hover:border-gray-600'
+                    }`}
+                  >
+                    <p className={`text-base font-semibold ${processMode === mode.value ? 'text-accent' : 'text-white'}`}>
+                      {mode.label}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-0.5">{mode.desc}</p>
+                  </button>
+                ))}
+              </div>
             </div>
 
+            {/* Photography tips - plain text */}
+            <div className="mb-6">
+              <p className="text-sm font-semibold text-white mb-2">Para mejores resultados:</p>
+              <div className="text-sm text-gray-400 space-y-1">
+                <p>· Dispara en horizontal</p>
+                <p>· Altura de 1 metro aproximadamente</p>
+                <p>· Usa luz natural, abre las persianas</p>
+                <p>· Desde las esquinas de la habitacion</p>
+                <p>· Sin zoom, mejor con gran angular (0.5x)</p>
+                <p>· Manten el movil recto, sin inclinar</p>
+              </div>
+            </div>
+
+            {/* File input */}
             <input
               ref={fileInputRef}
               type="file"
@@ -446,6 +810,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
               onChange={(e) => e.target.files && handleFiles(e.target.files)}
             />
 
+            {/* Drag & drop area */}
             <div
               onDragOver={(e) => {
                 e.preventDefault()
@@ -454,43 +819,34 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-12 text-center mb-8 transition-colors cursor-pointer ${
+              className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center mb-8 transition-all cursor-pointer ${
                 isDragging
-                  ? 'border-accent bg-accent/5'
-                  : 'border-surface-border hover:border-accent/50'
+                  ? 'border-accent bg-accent/10'
+                  : 'border-surface-border hover:border-accent/50 hover:bg-surface-card/50'
               }`}
             >
-              <svg
-                className={`w-12 h-12 mx-auto mb-4 ${isDragging ? 'text-accent' : 'text-gray-600'}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-                />
-              </svg>
-              <p className="text-gray-400 mb-1">
-                Arrastra tus fotos aquí o haz clic para seleccionar
+              <p className="text-white font-medium text-base mb-2">
+                {isDragging ? 'Suelta las fotos aqui' : 'Arrastra tus fotos aqui'}
               </p>
-              <p className="text-gray-600 text-sm">JPG, PNG, WebP hasta 20MB</p>
+              <p className="text-gray-500 text-sm mb-3">o</p>
+              <div className="inline-flex items-center gap-2 bg-accent/10 text-accent font-medium px-5 py-2.5 rounded-xl border border-accent/30">
+                Seleccionar fotos
+              </div>
+              <p className="text-gray-600 text-xs mt-3">JPG, PNG o WebP — maximo 7 fotos</p>
             </div>
 
             {uploads.length > 0 && (
               <>
-                <h3 className="text-sm font-medium text-gray-400 mb-4">
-                  Archivos seleccionados ({uploads.length})
+                <h3 className="text-sm font-medium text-white mb-4">
+                  {uploads.length} foto{uploads.length !== 1 ? 's' : ''} seleccionada{uploads.length !== 1 ? 's' : ''}
                 </h3>
                 <div className="space-y-2 mb-8">
                   {uploads.map((photo) => (
                     <div
                       key={photo.id}
-                      className="flex items-center justify-between bg-surface-card border border-surface-border rounded-xl px-5 py-4"
+                      className="flex items-center justify-between bg-surface-card border border-surface-border rounded-xl px-4 sm:px-5 py-3 sm:py-4"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 rounded-lg overflow-hidden bg-surface-light flex-shrink-0">
                           <img
                             src={URL.createObjectURL(photo.file)}
@@ -498,200 +854,692 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                             className="w-full h-full object-cover"
                           />
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-white">{photo.name}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{photo.name}</p>
                           <p className="text-xs text-gray-500">{photo.size}</p>
                         </div>
                       </div>
                       <button
                         onClick={() => removeUpload(photo.id)}
-                        className="text-gray-500 hover:text-red-400 transition-colors"
+                        className="text-gray-500 hover:text-red-400 transition-colors shrink-0 ml-2"
                       >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M6 18L18 6M6 6l12 12"
-                          />
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
                     </div>
                   ))}
                 </div>
-
-                {/* Process mode selection */}
-                <h3 className="text-sm font-medium text-gray-400 mb-3">Modo de procesado</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-                  {MODE_OPTIONS.map((mode) => (
-                    <button
-                      key={mode.value}
-                      onClick={() => setProcessMode(mode.value)}
-                      className={`text-left p-4 rounded-xl border-2 transition-all ${
-                        processMode === mode.value
-                          ? 'border-accent bg-accent/10'
-                          : 'border-surface-border bg-surface-card hover:border-gray-600'
-                      }`}
-                    >
-                      <p className={`text-sm font-semibold ${processMode === mode.value ? 'text-accent' : 'text-white'}`}>
-                        {mode.label}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">{mode.desc}</p>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Renovation textarea */}
+                {/* Renovation chips + textarea */}
                 {processMode === 'renovation' && (
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                      Describe la reforma que quieres visualizar
-                    </label>
-                    <textarea
-                      value={renovationText}
-                      onChange={(e) => setRenovationText(e.target.value)}
-                      placeholder="Ej: Cambiar el suelo a madera clara, pintar las paredes de blanco, modernizar la cocina con encimera de mármol..."
-                      rows={3}
-                      className="w-full bg-surface-card border border-surface-border rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-accent resize-none"
-                    />
+                  <div className="mb-8 space-y-4">
+                    <div>
+                      <p className="text-sm font-semibold text-white mb-2">Accion:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { label: 'Limpiar y ordenar', text: 'clean and declutter the space, remove all mess and debris', tip: 'Quita el desorden y deja el espacio limpio' },
+                          { label: 'Anadir muebles', text: 'add modern furniture appropriate for the space', tip: 'Sofa, mesa, sillas... lo que necesite' },
+                          { label: 'Pintar paredes', text: 'paint all walls in clean bright white', tip: 'Paredes blancas y luminosas' },
+                          { label: 'Suelo de madera', text: 'replace the floor with light natural wood flooring', tip: 'Parquet de madera clara natural' },
+                          { label: 'Acabados de lujo', text: 'upgrade all finishes to premium luxury quality', tip: 'Materiales premium y acabados de alta gama' },
+                        ].map((chip) => (
+                          <Tooltip key={chip.label} text={chip.tip}>
+                            <button
+                              type="button"
+                              onClick={() => setRenovationText(prev =>
+                                prev.includes(chip.text) ? prev.replace(chip.text + ', ', '').replace(chip.text, '').trim() : (prev ? prev + ', ' + chip.text : chip.text)
+                              )}
+                              className={`px-3.5 py-2 rounded-xl text-sm border transition-all ${
+                                renovationText.includes(chip.text)
+                                  ? 'bg-accent/20 border-accent text-white'
+                                  : 'bg-surface-light border-surface-border text-gray-400 hover:border-gray-500'
+                              }`}
+                            >
+                              {chip.label}
+                            </button>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-semibold text-white mb-2">Estilo:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { label: 'Moderno', text: 'modern minimalist style with clean lines', tip: 'Minimalista, lineas limpias' },
+                          { label: 'Nordico', text: 'nordic scandinavian style with warm wood and white tones', tip: 'Madera clara y tonos blancos' },
+                          { label: 'Mediterraneo', text: 'mediterranean style with warm terracotta and natural textures', tip: 'Terracota y texturas naturales' },
+                          { label: 'Industrial', text: 'urban industrial style with exposed concrete and metal', tip: 'Hormigon visto y metal' },
+                          { label: 'Clasico', text: 'classic elegant style with refined traditional details', tip: 'Elegante y tradicional' },
+                        ].map((chip) => (
+                          <Tooltip key={chip.label} text={chip.tip}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const styleTexts = ['modern minimalist style with clean lines', 'nordic scandinavian style with warm wood and white tones', 'mediterranean style with warm terracotta and natural textures', 'urban industrial style with exposed concrete and metal', 'classic elegant style with refined traditional details']
+                                setRenovationText(prev => {
+                                  let base = prev
+                                  styleTexts.forEach(s => { base = base.replace(', ' + s, '').replace(s + ', ', '').replace(s, '') })
+                                  base = base.trim().replace(/,$/, '').trim()
+                                  return base ? base + ', ' + chip.text : chip.text
+                                })
+                              }}
+                              className={`px-3.5 py-2 rounded-xl text-sm border transition-all ${
+                                renovationText.includes(chip.text)
+                                  ? 'bg-accent/20 border-accent text-white'
+                                  : 'bg-surface-light border-surface-border text-gray-400 hover:border-gray-500'
+                              }`}
+                            >
+                              {chip.label}
+                            </button>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <textarea
+                        value={renovationText}
+                        onChange={(e) => setRenovationText(e.target.value)}
+                        placeholder="O describe la reforma: cambiar suelo a madera, pintar paredes de blanco..."
+                        rows={3}
+                        className="w-full bg-surface-light border border-surface-border rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-accent resize-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                    <label className="block text-xs font-medium text-amber-400 mb-1.5">DEV: Modelo de IA</label>
+                    <select
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      className="w-full sm:w-auto bg-surface border border-surface-border rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                    >
+                      <option value="gemini-3-pro-image-preview">gemini-3-pro-image-preview (default)</option>
+                      <option value="gemini-3.1-flash-image-preview">gemini-3.1-flash-image-preview</option>
+                      <option value="gemini-2.5-flash-image">gemini-2.5-flash-image</option>
+                    </select>
                   </div>
                 )}
 
                 <button
                   onClick={processPhotos}
                   disabled={isProcessing || (processMode === 'renovation' && !renovationText.trim())}
-                  className="bg-accent hover:bg-accent-light disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-6 py-3 rounded-xl transition-colors"
+                  className="w-full sm:w-auto bg-accent hover:bg-accent-light hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-base px-8 py-3.5 min-h-[52px] rounded-xl transition-all flex items-center justify-center gap-2"
                 >
-                  Procesar {uploads.length} foto{uploads.length !== 1 ? 's' : ''}
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+                  </svg>
+                  Procesar {uploads.length} foto{uploads.length !== 1 ? 's' : ''} con IA
                 </button>
               </>
             )}
 
             {uploads.length === 0 && (
               <p className="text-center text-gray-600 text-sm">
-                Aún no hay fotos. Arrastra o selecciona imágenes para empezar.
+                Selecciona o arrastra fotos para empezar
               </p>
             )}
           </div>
         )}
 
-        {/* Procesando tab */}
+        {/* ─── PROCESANDO ─── */}
         {activeTab === 'Procesando' && (
           <div className="space-y-4">
+            {processError && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-5 py-4">
+                <p className="text-sm font-semibold text-red-400 mb-1">Algo fue mal</p>
+                <p className="text-sm text-red-300/80">{processError}</p>
+                <p className="text-xs text-gray-500 mt-2">Prueba con otra foto o intentalo de nuevo.</p>
+              </div>
+            )}
             {processing.length === 0 ? (
-              <div className="text-center py-16 text-gray-500">
-                No hay fotos procesándose
+              <div className="text-center py-16">
+                <div className="text-4xl mb-3">⏳</div>
+                <p className="text-gray-400 font-medium">No hay fotos procesandose</p>
+                <p className="text-sm text-gray-600 mt-1">Sube fotos y pulsa "Procesar" para empezar</p>
               </div>
             ) : (
-              processing.map((photo) => (
-                <div
-                  key={photo.id}
-                  className="bg-surface-card border border-surface-border rounded-xl p-5"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-medium text-white">{photo.name}</p>
-                    {photo.progress === -1 ? (
-                      <span className="text-sm text-red-400">Error</span>
-                    ) : (
-                      <span className="text-sm text-accent">{photo.progress}%</span>
+              processing.map((photo) => {
+                const blurAmount = photo.progress >= 0 ? Math.max(0, 20 - (photo.progress / 100) * 20) : 0
+                return (
+                  <div
+                    key={photo.id}
+                    className="bg-surface-card border border-surface-border rounded-xl overflow-hidden"
+                  >
+                    {photo.previewUrl && photo.progress >= 0 && (
+                      <div className="relative aspect-[16/9] overflow-hidden">
+                        <img
+                          src={photo.previewUrl}
+                          alt={photo.name}
+                          className="w-full h-full object-cover transition-[filter] duration-1000 ease-out"
+                          style={{ filter: `blur(${blurAmount}px)` }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-surface-card/80 to-transparent" />
+                        <div className="absolute bottom-4 left-4 right-4 flex items-center gap-3">
+                          <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                          <span className="text-sm text-white font-medium">La IA esta trabajando... esto tarda unos segundos</span>
+                        </div>
+                      </div>
                     )}
+                    <div className="p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-medium text-white">{photo.name}</p>
+                        {photo.progress === -1 ? (
+                          <span className="text-sm text-red-400 font-medium">Error</span>
+                        ) : (
+                          <span className="text-sm text-accent font-medium">{photo.progress}%</span>
+                        )}
+                      </div>
+                      <div className="w-full bg-surface-light rounded-full h-2.5">
+                        <div
+                          className={`h-2.5 rounded-full transition-all duration-500 ${
+                            photo.progress === -1 ? 'bg-red-500' : 'bg-accent'
+                          }`}
+                          style={{ width: `${photo.progress === -1 ? 100 : photo.progress}%` }}
+                        />
+                      </div>
+                      {photo.progress === -1 && (
+                        <div className="mt-2">
+                          <p className="text-sm text-red-400">
+                            {photoErrors.get(photo.id) || 'Algo fue mal. Prueba con otra foto mas pequena.'}
+                          </p>
+                          <button
+                            onClick={() => {
+                              const erroredPhoto = uploads.find((u) => u.id === photo.id)
+                              if (erroredPhoto) {
+                                setPhotoErrors((prev) => { const n = new Map(prev); n.delete(photo.id); return n })
+                                processPhotos()
+                              } else {
+                                addToast('Sube la foto de nuevo para reintentar', 'error')
+                              }
+                            }}
+                            className="mt-2 text-xs font-medium px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
+                          >
+                            Reintentar
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="w-full bg-surface-light rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-500 ${
-                        photo.progress === -1 ? 'bg-red-500' : 'bg-accent'
-                      }`}
-                      style={{ width: `${photo.progress === -1 ? 100 : photo.progress}%` }}
-                    />
-                  </div>
-                  {photo.progress === -1 && (
-                    <p className="text-xs text-red-400 mt-2">
-                      Error al procesar. Intenta de nuevo.
-                    </p>
-                  )}
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         )}
 
-        {/* Resultados tab */}
+        {/* ─── PASCAL EDITOR PANEL ─── */}
+        <AnimatePresence>
+          {editingPhotoId && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                key="backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => !editApplying && setEditingPhotoId(null)}
+                className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+              />
+              {/* Side panel */}
+              <motion.div
+                key="panel"
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="fixed top-0 right-0 h-full w-96 z-50 bg-surface/95 backdrop-blur-xl border-l border-surface-border flex flex-col"
+              >
+                <div className="flex items-center justify-between px-6 py-5 border-b border-surface-border">
+                  <div>
+                    <h2 className="text-base font-semibold text-white">Editar resultado</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">La IA aplicará los cambios sobre la foto mejorada</p>
+                  </div>
+                  <button
+                    onClick={() => !editApplying && setEditingPhotoId(null)}
+                    className="text-gray-500 hover:text-white transition-colors p-1"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-6 py-5">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Describe qué cambiar
+                  </label>
+                  <textarea
+                    value={editPanelText}
+                    onChange={(e) => setEditPanelText(e.target.value)}
+                    placeholder="Describe qué cambiar: quita el sofá rojo, añade luz natural, cambia el suelo a parquet..."
+                    rows={6}
+                    className="w-full bg-surface-light border border-surface-border rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-accent resize-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-3">
+                    Sé específico para mejores resultados. El modelo usará la foto procesada como base.
+                  </p>
+                </div>
+                <div className="px-6 py-5 border-t border-surface-border">
+                  <button
+                    onClick={applyEdit}
+                    disabled={editApplying || !editPanelText.trim()}
+                    className="w-full bg-accent hover:bg-accent-light disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                  >
+                    {editApplying ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Aplicando...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                        </svg>
+                        Aplicar
+                      </>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* ─── EDITOR 3D ─── */}
+        {activeTab === 'Editor 3D' && (
+          <div className="w-full">
+            <div className="rounded-2xl border border-surface-border overflow-hidden bg-surface-card" style={{ height: '70vh' }}>
+              <Pascal3DEditor
+                referenceImageUrl={results.length > 0 ? results[0].processedUrl : undefined}
+                onScreenshot={async (dataUrl) => {
+                  setEditor3dScreenshot(dataUrl)
+                }}
+              />
+            </div>
+
+            {/* Screenshot preview and send to Gemini */}
+            {editor3dScreenshot && (
+              <div className="mt-6 bg-surface-card border border-surface-border rounded-2xl p-5">
+                <div className="flex items-start gap-5">
+                  <div className="w-48 rounded-xl overflow-hidden border border-surface-border shrink-0">
+                    <img src={editor3dScreenshot} alt="Captura 3D" className="w-full" loading="lazy" decoding="async" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-white mb-2">Captura del Editor 3D</h4>
+                    <p className="text-xs text-gray-400 mb-4">
+                      Envía esta captura a Gemini para regenerar la imagen con los cambios del editor 3D aplicados.
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={async () => {
+                          if (!userId || editor3dSending) return
+                          setEditor3dSending(true)
+                          try {
+                            const base64 = editor3dScreenshot.split(',')[1]
+                            const res = await fetch('/api/process', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                imageUrl: `data:image/png;base64,${base64}`,
+                                processType: 'renovation',
+                                userRequest: 'Toma esta escena 3D como referencia y genera una foto fotorrealista de un interior con estos muebles, materiales y disposición. Mantén la composición y los colores.',
+                              }),
+                            })
+                            if (!res.ok) throw new Error('Failed')
+                            const data = await res.json()
+                            if (!data.image) throw new Error('No image')
+
+                            const bytes = Uint8Array.from(atob(data.image), (c) => c.charCodeAt(0))
+                            const blob = new Blob([bytes], { type: data.mimeType || 'image/jpeg' })
+                            const path = `${userId}/${params.id}/editor3d-${Date.now()}.jpg`
+
+                            const { error: upErr } = await supabase.storage
+                              .from('PHOTOS')
+                              .upload(path, blob, { upsert: true })
+                            if (upErr) throw upErr
+
+                            const { data: { publicUrl } } = supabase.storage
+                              .from('PHOTOS')
+                              .getPublicUrl(path)
+
+                            // Add as new result
+                            setResults((prev) => [{
+                              id: `editor3d-${Date.now()}`,
+                              name: 'Editor 3D render',
+                              originalUrl: editor3dScreenshot,
+                              processedUrl: publicUrl,
+                              originalBase64: base64,
+                              originalMimeType: 'image/png',
+                            }, ...prev])
+
+                            setEditor3dScreenshot(null)
+                            setActiveTab('Resultados')
+                            addToast('Imagen generada desde editor 3D', 'success')
+                          } catch (err) {
+                            console.error('Editor 3D send error:', err)
+                            addToast('Error al generar desde editor 3D', 'error')
+                          } finally {
+                            setEditor3dSending(false)
+                          }
+                        }}
+                        disabled={editor3dSending}
+                        className="bg-accent hover:bg-accent-light text-white font-medium px-5 py-2.5 rounded-xl transition-colors text-sm flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {editor3dSending ? (
+                          <>
+                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Generando...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
+                            </svg>
+                            Enviar a Gemini
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setEditor3dScreenshot(null)}
+                        className="px-4 py-2.5 rounded-xl text-sm text-gray-400 hover:text-white border border-surface-border hover:border-gray-500 transition-colors"
+                      >
+                        Descartar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── TOUR 3D ─── */}
+        {activeTab === 'Tour 3D' && (
+          <div className="max-w-3xl">
+            {/* Hidden file input for marble */}
+            <input
+              ref={marbleFileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleMarbleUpload(file)
+                e.target.value = ''
+              }}
+            />
+
+            {/* Estado completado */}
+            {marbleStatus === 'completed' && marbleWorldId && (
+              <div>
+                <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-5 py-4 mb-6">
+                  <div className="text-2xl">✓</div>
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-400">Tour listo</p>
+                    <p className="text-xs text-emerald-400/70 mt-0.5">Comparte este link con tus clientes</p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl overflow-hidden border border-surface-border mb-6">
+                  <iframe
+                    src={`https://marble.worldlabs.ai/world/${marbleWorldId}`}
+                    className="w-full rounded-xl"
+                    style={{ height: 600 }}
+                    allow="fullscreen"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <a
+                    href={`https://marble.worldlabs.ai/world/${marbleWorldId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-accent hover:bg-accent-light text-white font-medium px-5 py-2.5 rounded-xl transition-colors text-sm flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                    </svg>
+                    Abrir en pantalla completa
+                  </a>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`https://marble.worldlabs.ai/world/${marbleWorldId}`)
+                      addToast('Link copiado al portapapeles', 'success')
+                    }}
+                    className="bg-surface-card border border-surface-border hover:border-gray-500 text-white font-medium px-5 py-2.5 rounded-xl transition-colors text-sm flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-2.03a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.757 8.97" />
+                    </svg>
+                    Compartir link
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Estado procesando */}
+            {marbleStatus === 'processing' && (
+              <div className="text-center py-16">
+                <div className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-6" />
+                <h2 className="text-xl font-bold mb-2">Generando tu tour 3D...</h2>
+                <p className="text-gray-400 text-sm mb-8">Esto tarda unos minutos. No cierres esta pagina.</p>
+                <div className="max-w-md mx-auto">
+                  <div className="w-full bg-surface-card border border-surface-border rounded-full h-3 overflow-hidden">
+                    <motion.div
+                      className="h-full bg-accent rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${marbleProgress}%` }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">{Math.round(marbleProgress)}% completado</p>
+                </div>
+              </div>
+            )}
+
+            {/* Estado error */}
+            {marbleStatus === 'failed' && (
+              <div className="text-center py-16">
+                <div className="text-5xl mb-4">⚠️</div>
+                <h2 className="text-xl font-bold mb-2">Error al generar el tour</h2>
+                <p className="text-gray-400 text-sm mb-6">{marbleError || 'Algo salio mal. Intentalo de nuevo con otra foto.'}</p>
+                <button
+                  onClick={() => {
+                    setMarbleStatus('idle')
+                    setMarbleError(null)
+                  }}
+                  className="bg-accent hover:bg-accent-light text-white font-medium px-6 py-3 rounded-xl transition-colors"
+                >
+                  Intentar de nuevo
+                </button>
+              </div>
+            )}
+
+            {/* Estado vacio (sin tour) */}
+            {marbleStatus === 'idle' && (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-accent/10 flex items-center justify-center">
+                  <svg className="w-10 h-10 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-2.25-1.313M21 7.5v2.25m0-2.25l-2.25 1.313M3 7.5l2.25-1.313M3 7.5l2.25 1.313M3 7.5v2.25m9 3l2.25-1.313M12 12.75l-2.25-1.313M12 12.75V15m0 6.75l2.25-1.313M12 21.75V19.5m0 2.25l-2.25-1.313m0-16.875L12 2.25l2.25 1.313M21 14.25v2.25l-2.25 1.313m-13.5 0L3 16.5v-2.25" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-bold mb-2">Genera el tour 3D de tu propiedad</h2>
+                <p className="text-gray-400 text-sm mb-8 max-w-md mx-auto">
+                  Sube una foto real del espacio y generamos un mundo 3D navegable en minutos
+                </p>
+                <button
+                  onClick={() => marbleFileInputRef.current?.click()}
+                  className="bg-accent hover:bg-accent-light text-white font-semibold px-8 py-3.5 rounded-xl transition-colors text-base"
+                >
+                  Subir foto real →
+                </button>
+                <p className="text-xs text-gray-600 mt-4 max-w-sm mx-auto">
+                  Usa fotos reales, no las mejoradas por IA. Mejor resultado con buena iluminacion natural.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── RESULTADOS ─── */}
         {activeTab === 'Resultados' && (
           <div>
             {results.length === 0 ? (
-              <div className="text-center py-16 text-gray-500">
-                Aún no hay resultados. Sube y procesa fotos primero.
+              <div className="text-center py-16">
+                <div className="text-5xl mb-4">🖼️</div>
+                <p className="text-gray-400 font-medium text-lg">Aun no hay resultados</p>
+                <p className="text-sm text-gray-600 mt-1 mb-6">Sube fotos y procesalas para ver la magia</p>
+                <button
+                  onClick={() => setActiveTab('Subir fotos')}
+                  className="bg-accent hover:bg-accent-light text-white font-medium px-6 py-3 rounded-xl transition-colors"
+                >
+                  Subir fotos
+                </button>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-8">
+                {/* Success message */}
+                <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-5 py-4">
+                  <div className="text-2xl">🎉</div>
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-400">Listo! {results.length} foto{results.length !== 1 ? 's' : ''} mejorada{results.length !== 1 ? 's' : ''}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Arrastra el deslizador para comparar el antes y el despues</p>
+                  </div>
+                </div>
+
                 {results.map((photo) => (
                   <div
                     key={photo.id}
                     className="bg-surface-card border border-surface-border rounded-xl overflow-hidden"
                   >
-                    <div className="grid grid-cols-2 gap-0">
-                      {/* Original */}
-                      <div className="relative">
-                        <div className="absolute top-3 left-3 z-10 bg-black/70 backdrop-blur-sm text-xs font-medium text-gray-300 px-2.5 py-1 rounded-md">
-                          Original
-                        </div>
-                        <img
-                          src={photo.originalUrl}
-                          alt={`Original - ${photo.name}`}
-                          className="w-full aspect-[4/3] object-cover"
-                        />
-                      </div>
-                      {/* Processed */}
-                      <div className="relative">
-                        <div className="absolute top-3 left-3 z-10 bg-accent/80 backdrop-blur-sm text-xs font-medium text-white px-2.5 py-1 rounded-md">
-                          Procesada
-                        </div>
-                        <img
-                          src={photo.processedUrl}
-                          alt={`Procesada - ${photo.name}`}
-                          className="w-full aspect-[4/3] object-cover"
-                        />
-                      </div>
-                    </div>
-                    <div className="p-4 border-t border-surface-border">
-                      <div className="flex items-center justify-between mb-3">
+                    {/* Before/After slider */}
+                    <ResultSlider
+                      originalUrl={photo.originalUrl}
+                      processedUrl={photo.processedUrl}
+                      name={photo.name}
+                    />
+
+                    {/* Scan reveal for new results */}
+                    {newResultIds.has(photo.id) && (
+                      <motion.div
+                        className="absolute inset-0 z-20 pointer-events-none"
+                        initial={{ opacity: 1 }}
+                        animate={{ opacity: 0 }}
+                        transition={{ duration: 1.2, delay: 0.8 }}
+                        onAnimationComplete={() => {
+                          setNewResultIds((prev) => {
+                            const next = new Set(prev)
+                            next.delete(photo.id)
+                            return next
+                          })
+                        }}
+                      />
+                    )}
+
+                    <div className="p-4 sm:p-5 border-t border-surface-border">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                         <p className="text-sm font-medium text-white">{photo.name}</p>
-                        <a
-                          href={photo.processedUrl}
-                          download={`processed-${photo.name}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-accent hover:text-accent-light text-sm transition-colors"
-                        >
-                          Descargar
-                        </a>
-                      </div>
-                      {/* Relighting buttons */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500 mr-1">Relighting:</span>
-                        {([
-                          { type: 'relight-dawn' as const, label: 'Amanecer' },
-                          { type: 'relight-day' as const, label: 'Día' },
-                          { type: 'relight-night' as const, label: 'Noche' },
-                        ]).map((rl) => (
+                        <div className="flex items-center gap-3">
                           <button
-                            key={rl.type}
-                            onClick={() => relightPhoto(photo, rl.type)}
-                            disabled={relightingId === photo.id}
-                            className="text-xs px-3 py-1.5 rounded-lg border border-surface-border bg-surface hover:border-accent/50 hover:text-accent text-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => downloadPhoto(photo.originalUrl, `original-${photo.name}`)}
+                            className="text-gray-500 hover:text-gray-300 text-xs transition-colors"
                           >
-                            {relightingId === photo.id ? 'Procesando...' : rl.label}
+                            Descargar original
                           </button>
+                          <button
+                            onClick={() => downloadPhoto(photo.processedUrl, `mejorada-${photo.name}`)}
+                            className="inline-flex items-center gap-2 bg-accent hover:bg-accent-light text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors min-h-[44px]"
+                          >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Descargar foto mejorada
+                          </button>
+                        </div>
+                      </div>
+                      {/* Pascal Editor button */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <button
+                          onClick={() => {
+                            setEditingPhotoId(photo.id)
+                            setEditPanelText('')
+                          }}
+                          className="inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl border border-surface-border bg-surface-light hover:border-accent/50 hover:text-accent text-gray-300 transition-all"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                          </svg>
+                          Editar más
+                        </button>
+                      </div>
+
+                      {/* Version history strip */}
+                      {(photoHistories[photo.id]?.length ?? 0) > 0 && (
+                        <div className="mb-3">
+                          <p className="text-xs text-gray-500 mb-2">Versiones anteriores:</p>
+                          <div className="flex gap-2 overflow-x-auto pb-1">
+                            {(photoHistories[photo.id] ?? []).map((url, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() =>
+                                  setResults((prev) =>
+                                    prev.map((r) => (r.id === photo.id ? { ...r, processedUrl: url } : r))
+                                  )
+                                }
+                                className="shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 border-surface-border hover:border-accent transition-colors"
+                                title={`Versión ${idx + 1}`}
+                              >
+                                <img src={url} alt={`v${idx + 1}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Relighting buttons */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-gray-500 mr-1">Cambiar iluminacion:</span>
+                        {([
+                          { type: 'relight-dawn' as const, label: '🌅 Amanecer', tip: 'Luz calida de amanecer' },
+                          { type: 'relight-day' as const, label: '☀️ Dia', tip: 'Luz natural de dia' },
+                          { type: 'relight-night' as const, label: '🌙 Noche', tip: 'Ambiente nocturno acogedor' },
+                        ]).map((rl) => (
+                          <Tooltip key={rl.type} text={rl.tip}>
+                            <button
+                              onClick={() => relightPhoto(photo, rl.type)}
+                              disabled={relightingId === photo.id}
+                              className="text-xs px-3 py-2 rounded-lg border border-surface-border bg-surface-light hover:border-accent/50 hover:text-accent text-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {relightingId === photo.id ? (
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                                  Cambiando...
+                                </span>
+                              ) : rl.label}
+                            </button>
+                          </Tooltip>
                         ))}
                       </div>
                     </div>
                   </div>
                 ))}
+
+                {/* CTA to process more */}
+                <div className="text-center py-8 bg-surface-card border border-surface-border rounded-2xl">
+                  <p className="text-lg font-semibold text-white mb-2">Quieres procesar mas fotos?</p>
+                  <p className="text-sm text-gray-400 mb-5">Sube mas imagenes de esta propiedad</p>
+                  <button
+                    onClick={() => setActiveTab('Subir fotos')}
+                    className="bg-accent hover:bg-accent-light text-white font-medium px-6 py-3 rounded-xl transition-colors inline-flex items-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Subir mas fotos
+                  </button>
+                </div>
               </div>
             )}
           </div>

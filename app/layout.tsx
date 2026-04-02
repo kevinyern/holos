@@ -1,9 +1,33 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import ClientProviders from '@/components/ClientProviders'
 
 export const metadata: Metadata = {
-  title: 'Holos — Fotos inmobiliarias con IA',
-  description: 'Transforma las fotos de tus propiedades con inteligencia artificial. Relighting, virtual staging, tours 3D y más.',
+  title: 'PhotoAgent — Fotos inmobiliarias profesionales con IA en 30 segundos',
+  description: 'Convierte fotos de móvil en imágenes de agencia. Sin fotógrafo, sin Photoshop. Sube la foto y la IA la transforma en 30 segundos.',
+  keywords: [
+    'fotos inmobiliarias IA',
+    'fotografía inmobiliaria inteligencia artificial',
+    'mejorar fotos piso vender',
+    'fotos agencia inmobiliaria automática',
+    'edición fotos inmuebles IA',
+    'Idealista fotos profesionales',
+    'Fotocasa fotos agencia',
+    'virtual staging españa',
+  ],
+  openGraph: {
+    title: 'PhotoAgent — Fotos inmobiliarias profesionales con IA en 30 segundos',
+    description: 'Convierte fotos de móvil en imágenes de agencia. Sin fotógrafo, sin Photoshop. Sube la foto y la IA la transforma en 30 segundos.',
+    images: [{ url: '/images/despues-obra-1.jpeg', width: 1200, height: 630, alt: 'PhotoAgent — Antes y después con IA' }],
+    type: 'website',
+    locale: 'es_ES',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PhotoAgent — Fotos inmobiliarias profesionales con IA en 30 segundos',
+    description: 'Convierte fotos de móvil en imágenes de agencia. Sin fotógrafo, sin Photoshop. Sube la foto y la IA la transforma en 30 segundos.',
+    images: ['/images/despues-obra-1.jpeg'],
+  },
 }
 
 export default function RootLayout({
@@ -13,7 +37,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <ClientProviders>{children}</ClientProviders>
+      </body>
     </html>
   )
 }

@@ -15,4 +15,42 @@ body {
 
 ::selection {
   background-color: rgba(59, 130, 246, 0.3);
+  color: white;
+}
+
+/* Scrollbar thin */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #3b82f6;
+  border-radius: 3px;
+}
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #3b82f6 transparent;
+}
+
+@keyframes shimmer-down {
+  0% { top: -20%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes scan-reveal {
+  0% { left: -30%; }
+  100% { left: 130%; }
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s ease-in-out infinite;
 }

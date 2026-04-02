@@ -28,14 +28,46 @@ export default function AuthPage() {
     setLoading(true)
     setError(null)
 
-    const { error } = isLogin
-      ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({ email, password })
+    if (!isLogin) {
+      // Check IP limit before creating the account
+      try {
+        const ipCheck = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: 'precheck', email }),
+        })
+        if (ipCheck.status === 429) {
+          const data = await ipCheck.json()
+          setError(data.error || 'Demasiadas cuentas creadas desde esta red.')
+          setLoading(false)
+          return
+        }
+      } catch {
+        // If IP check fails, allow signup to proceed
+      }
+    }
 
-    if (error) {
-      setError(error.message)
+    const { data: authData, error: authError } = isLogin
+      ? await supabase.auth.signInWithPassword({ email, password })
+      : await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        })
+
+    if (authError) {
+      setError(authError.message)
       setLoading(false)
       return
+    }
+
+    // Record IP for new signups
+    if (!isLogin && authData.user) {
+      fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: authData.user.id, email }),
+      }).catch(() => {})
     }
 
     router.push('/dashboard')
@@ -70,7 +102,7 @@ export default function AuthPage() {
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 font-medium py-3 rounded-xl hover:bg-gray-100 transition-colors disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 font-medium py-3 min-h-[48px] rounded-xl hover:bg-gray-100 transition-colors disabled:opacity-50"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
@@ -119,7 +151,7 @@ export default function AuthPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-accent hover:bg-accent-light text-white font-medium py-3 rounded-xl transition-colors disabled:opacity-50"
+              className="w-full bg-accent hover:bg-accent-light text-white font-medium py-3 min-h-[48px] rounded-xl transition-colors disabled:opacity-50"
             >
               {loading ? 'Cargando...' : isLogin ? 'Iniciar sesión' : 'Crear cuenta'}
             </button>
