@@ -232,22 +232,7 @@ export default function Pricing() {
             </motion.div>
           ))}
         </div>
-        {/* Garantía */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="mt-12 text-center"
-        >
-          <div className="inline-flex items-center gap-3 bg-surface-card border border-surface-border rounded-2xl px-8 py-5">
-            <span className="text-3xl">🛡️</span>
-            <p className="text-sm text-gray-300">
-              <span className="font-semibold text-white">Garantía de devolución.</span>{' '}
-              Si en 7 días no estás satisfecho, te devolvemos el dinero. Sin preguntas.
-            </p>
-          </div>
-        </motion.div>
+
 
         {/* Tabla comparativa */}
         <motion.div
