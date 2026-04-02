@@ -494,11 +494,12 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
         const timestamp = Date.now()
         const originalPath = `${userId}/${params.id}/original-${timestamp}-${photo.name}`
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError, data: uploadData } = await supabase.storage
           .from('PHOTOS')
           .upload(originalPath, photo.file, { upsert: true })
 
-        if (uploadError) throw uploadError
+        if (uploadError) throw new Error(`Error subiendo foto: ${uploadError.message}`)
+        if (!uploadData?.path) throw new Error('Upload completado pero sin path — reintenta')
 
         const {
           data: { publicUrl: originalUrl },
