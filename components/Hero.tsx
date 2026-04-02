@@ -135,16 +135,16 @@ function RotatingHero() {
 
 function BeforeAfterStatic() {
   return (
-    <div className="grid grid-cols-2 gap-3 w-full h-full">
-      <div className="relative rounded-xl overflow-hidden">
-        <img src="/images/hero-antes.jpeg" alt="Antes" className="w-full h-full object-cover" loading="eager" decoding="async" />
-        <div className="absolute inset-0 bg-black/20" />
+    <div className="grid grid-cols-2 gap-4">
+      <div className="relative rounded-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+        <img src="/images/hero-antes.jpeg" alt="Antes" className="w-full object-cover" loading="eager" decoding="async" />
+        <div className="absolute inset-0 bg-black/10" />
         <div className="absolute top-3 left-3">
           <span className="bg-black/70 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full tracking-widest uppercase">Antes</span>
         </div>
       </div>
-      <div className="relative rounded-xl overflow-hidden">
-        <img src="/images/hero-despues.jpeg" alt="Después" className="w-full h-full object-cover" loading="eager" decoding="async" />
+      <div className="relative rounded-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+        <img src="/images/hero-despues.jpeg" alt="Después" className="w-full object-cover" loading="eager" decoding="async" />
         <div className="absolute top-3 left-3">
           <span className="bg-accent/90 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full tracking-widest uppercase">Después</span>
         </div>
@@ -228,7 +228,7 @@ export default function Hero() {
           transition={{ duration: 0.7, delay: 0.3 }}
           className="relative"
         >
-          <div className="aspect-[4/3] sm:aspect-[16/9] max-w-4xl mx-auto rounded-2xl border border-white/10 overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.6)]">
+          <div className="max-w-4xl mx-auto">
             <BeforeAfterStatic />
           </div>
           <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-2/3 h-12 bg-accent/15 blur-3xl rounded-full" />
