@@ -53,7 +53,7 @@ function OnboardingOverlay({ onClose }: { onClose: () => void }) {
       <div className="bg-surface-card rounded-2xl p-8 max-w-md w-full shadow-2xl border border-surface-border">
         <div className="text-center mb-6">
           <div className="text-4xl mb-3">✨</div>
-          <h2 className="text-xl font-bold text-white">Bienvenido a Holos</h2>
+          <h2 className="text-xl font-bold text-white">Bienvenido a PhotoAgent</h2>
           <p className="text-gray-400 text-sm mt-2">En 3 pasos tienes fotos profesionales</p>
         </div>
         <div className="flex items-center justify-center gap-2 mb-8">
@@ -283,9 +283,21 @@ export default function DashboardPage() {
                 style={{ width: `${pct}%` }}
               />
             </div>
-            {pct >= 100 && (
-              <p className="text-xs text-red-400 font-medium mt-2">Cuota agotada — actualiza tu plan para seguir procesando fotos</p>
-            )}
+            {pct >= 100 ? (
+              <div className="mt-3">
+                <p className="text-sm text-red-400 font-semibold mb-2">Has llegado al límite. Actualiza tu plan</p>
+                <a
+                  href="/pricing"
+                  className="inline-block bg-accent hover:bg-accent-light text-white font-semibold text-sm px-6 py-2.5 rounded-xl transition-colors"
+                >
+                  Actualizar plan
+                </a>
+              </div>
+            ) : pct >= 80 ? (
+              <p className="text-sm text-amber-400 font-medium mt-2">
+                ⚠️ Te quedan pocas fotos · <a href="/pricing" className="underline hover:text-amber-300 transition-colors">Actualizar plan</a>
+              </p>
+            ) : null}
           </div>
         )
       })()}

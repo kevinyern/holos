@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
+import { createClient } from '@/lib/supabase'
 
 const plans = [
   {
@@ -126,6 +127,14 @@ export default function Pricing() {
   const checkout = async (planKey: string) => {
     setLoading(planKey)
     try {
+      // Check if user is logged in before proceeding
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        window.location.href = '/auth?next=/pricing'
+        return
+      }
+
       const priceId = priceIds[planKey]
       if (!priceId) {
         setLoading(null)

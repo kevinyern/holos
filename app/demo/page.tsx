@@ -2,8 +2,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 
 export const metadata = {
-  title: 'Demo — Resultados reales | Holos',
-  description: 'Mira lo que Holos hace con fotos reales de inmuebles. Sin trampa.',
+  title: 'Demo — Resultados reales | PhotoAgent',
+  description: 'Mira lo que PhotoAgent hace con fotos reales de inmuebles. Sin trampa.',
 }
 
 const examples = [

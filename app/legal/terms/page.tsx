@@ -14,7 +14,7 @@ export default function TermsPage() {
         </div>
 
         <Section title="1. Descripción del servicio">
-          <p>Holos es una plataforma SaaS que utiliza inteligencia artificial para mejorar y transformar fotografías inmobiliarias. Operado por <strong className="text-white">PhotoAgent SL</strong> y accesible en <a href="https://photoagent.pro" className="text-blue-400 hover:text-blue-300">photoagent.pro</a>.</p>
+          <p>PhotoAgent es una plataforma SaaS que utiliza inteligencia artificial para mejorar y transformar fotografías inmobiliarias. Operado por <strong className="text-white">PhotoAgent SL</strong> y accesible en <a href="https://photoagent.pro" className="text-blue-400 hover:text-blue-300">photoagent.pro</a>.</p>
         </Section>
 
         <Section title="2. Aceptación de los términos">

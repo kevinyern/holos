@@ -3,26 +3,22 @@ import { NextResponse } from 'next/server'
 
 export async function POST() {
   try {
+    // Use service role key to manage storage policies
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
     // Check if bucket exists
     const { data: buckets } = await supabase.storage.listBuckets()
-    const exists = buckets?.some((b) => b.name === 'photos')
+    const photosExists = buckets?.some((b) => b.name === 'PHOTOS')
 
-    if (!exists) {
-      const { error } = await supabase.storage.createBucket('photos', {
+    if (!photosExists) {
+      await supabase.storage.createBucket('PHOTOS', {
         public: true,
-        fileSizeLimit: 20 * 1024 * 1024, // 20MB
-        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+        fileSizeLimit: 20 * 1024 * 1024,
+        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic'],
       })
-
-      if (error) {
-        console.error('Bucket creation error:', error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
-      }
     }
 
     return NextResponse.json({ ok: true })
