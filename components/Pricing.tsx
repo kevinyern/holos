@@ -19,7 +19,7 @@ const plans = [
       'Descarga en alta resolucion',
       'Soporte por email',
     ],
-    cta: 'Empezar gratis',
+    cta: 'Empezar',
     highlighted: false,
   },
   {
@@ -37,7 +37,7 @@ const plans = [
       'Soporte prioritario',
       'Hasta 50 proyectos activos',
     ],
-    cta: 'Empezar ahora',
+    cta: 'Empezar',
     highlighted: true,
   },
   {
@@ -55,7 +55,7 @@ const plans = [
       'Soporte dedicado',
       'Proyectos ilimitados',
     ],
-    cta: 'Hablar con ventas',
+    cta: 'Empezar',
     highlighted: false,
   },
 ]
@@ -216,7 +216,7 @@ export default function Pricing() {
                     : 'bg-surface-light border border-surface-border hover:border-gray-600 text-white'
                 }`}
               >
-                {loading === plan.planKey ? 'Cargando...' : plan.highlighted ? 'Empezar prueba gratis' : plan.cta}
+                {loading === plan.planKey ? 'Cargando...' : plan.cta}
               </button>
 
               <ul className="space-y-3">
