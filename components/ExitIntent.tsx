@@ -7,7 +7,7 @@ export default function ExitIntent() {
 
   useEffect(() => {
     const shown = parseInt(localStorage.getItem('exit_intent_count') || '0', 10)
-    if (shown >= 2) return
+    if (shown >= 1) return
 
     const handleMouseLeave = (e: MouseEvent) => {
       if (e.clientY <= 5) {
