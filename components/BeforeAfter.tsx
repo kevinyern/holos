@@ -12,6 +12,7 @@ const relightingImages = [
 ]
 
 const beforeAfterPairs = [
+  { before: '/images/antes-obra-6.jpeg',   after: '/images/despues-obra-6.jpeg',   label: 'Foto de móvil → Foto pro' },
   { before: '/images/orden-antes.jpeg',    after: '/images/orden-despues.jpeg',    label: 'Foto de móvil → Foto pro' },
   { before: '/images/orden-antes-5.jpeg',  after: '/images/orden-despues-5.jpeg',  label: 'Foto de móvil → Foto pro' },
   { before: '/images/antes-obra-1.jpeg',   after: '/images/despues-obra-1.jpeg',   label: 'Reforma integral' },
