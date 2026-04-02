@@ -142,10 +142,10 @@ export default function Pricing() {
       } else if (data.redirect) {
         window.location.href = data.redirect
       } else {
-        console.error('Stripe error:', data.error)
+        alert('Error al conectar con Stripe: ' + (data.error || 'Sin respuesta'))
       }
-    } catch (e) {
-      console.error('Checkout error:', e)
+    } catch (e: any) {
+      alert('Error: ' + e.message)
     }
     setLoading(null)
   }
