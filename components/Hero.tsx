@@ -77,9 +77,9 @@ function FloatingParticles() {
 // ─── ROTATING PHRASES ────────────────────────────────────────────────────────
 
 const PHRASES = [
-  { white: 'Tu foto de móvil. ', accent: 'Lista para vender.' },
-  { white: 'De foto cutre ', accent: 'a imagen de agencia.' },
-  { white: 'Sin fotógrafo. Sin Photoshop. ', accent: 'En 30 segundos.' },
+  { white: 'Llegas al piso. Haces 4 fotos. ', accent: 'El resto lo hacemos nosotros.' },
+  { white: 'Sin fotógrafo. Sin ordenar. ', accent: 'Sin perder el tiempo.' },
+  { white: 'Foto de móvil ', accent: 'lista para Idealista en 30 segundos.' },
 ]
 
 function RotatingHero() {
@@ -147,14 +147,14 @@ function AnimatedSlider() {
   return (
     <div className="relative w-full h-full overflow-hidden">
       <div className="absolute inset-0">
-        <img src="/images/despues-obra-1.jpeg" alt="Después" className="w-full h-full object-cover" loading="eager" decoding="async" />
+        <img src="/images/orden-bien-1.png" alt="Después" className="w-full h-full object-cover" loading="eager" decoding="async" />
         <div className="absolute inset-0 bg-black/10" />
       </div>
       <motion.div
         className="absolute inset-0"
         style={{ clipPath: useTransform(clipPercent, (v) => `inset(0 ${100 - v}% 0 0)`) }}
       >
-        <img src="/images/antes-obra-1.jpeg" alt="Antes" className="w-full h-full object-cover" loading="eager" decoding="async" />
+        <img src="/images/orden-mal-1.png" alt="Antes" className="w-full h-full object-cover" loading="eager" decoding="async" />
         <div className="absolute inset-0 bg-black/20" />
       </motion.div>
       {/* Light line on slider edge */}
@@ -219,7 +219,7 @@ export default function Hero() {
             transition={{ duration: 0.5, delay: 0.16 }}
             className="text-gray-400 text-base md:text-xl max-w-xl mx-auto mb-9 leading-relaxed px-2"
           >
-            Sube cualquier foto de móvil y obtén una imagen de agencia en 30 segundos. Vende antes. Cobra más. Sin fotógrafo.
+            Haz la foto como puedas. La IA la convierte en imagen de agencia en 30 segundos. Publica hoy, ordena la casa después.
           </motion.p>
 
           <motion.div
@@ -234,7 +234,7 @@ export default function Hero() {
               whileTap={{ scale: 0.98 }}
               className="w-full sm:w-auto bg-accent hover:bg-accent-light text-white font-semibold px-8 py-4 rounded-xl text-base sm:text-lg transition-all hover:shadow-[0_0_40px_rgba(59,130,246,0.35)] flex items-center justify-center gap-2"
             >
-              Pruébalo gratis
+              Subir mi primera foto
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
@@ -270,7 +270,6 @@ export default function Hero() {
           transition={{ duration: 0.5, delay: 0.6 }}
           className="mt-12 text-center"
         >
-          <p className="text-xs text-gray-600 uppercase tracking-widest mb-3">Únete a los primeros agentes</p>
           <p className="text-sm text-gray-500 font-medium tracking-wide">
             Sin tarjeta
             <span className="mx-3 text-gray-700">·</span>

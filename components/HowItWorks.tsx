@@ -5,9 +5,9 @@ import { motion } from 'framer-motion'
 const steps = [
   {
     number: '01',
-    title: 'Sube tu foto',
-    description: 'Cualquier foto hecha con el móvil. Sin preparación, sin requisitos técnicos.',
-    detail: 'Formatos: JPG, HEIC, PNG. Desde cualquier dispositivo.',
+    title: 'Llega y fotografía',
+    description: 'Haz las fotos con el móvil como siempre. Sin preparar, sin ordenar, sin esperar al fotógrafo.',
+    detail: 'JPG, HEIC, PNG. Desde cualquier dispositivo.',
     icon: (
       <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
@@ -16,9 +16,9 @@ const steps = [
   },
   {
     number: '02',
-    title: 'La IA lo transforma',
-    description: 'Luz, perspectiva, orden, color. Corregido y mejorado automáticamente en menos de 30 segundos.',
-    detail: 'Sin Photoshop. Sin fotógrafo. Sin esperar.',
+    title: '30 segundos de IA',
+    description: 'La IA corrige luz, perspectiva, desorden y calidad. Sin Photoshop. Sin intervención manual.',
+    detail: 'El resultado es una foto de agencia real, no un render.',
     icon: (
       <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
@@ -27,9 +27,9 @@ const steps = [
   },
   {
     number: '03',
-    title: 'Descarga y publica',
-    description: 'Imagen de agencia lista para Idealista, Fotocasa y redes sociales. Impacto inmediato en tu anuncio.',
-    detail: 'Más visitas. Más contactos. Más ventas.',
+    title: 'Publica ahora mismo',
+    description: 'Descarga y sube directamente a Idealista, Fotocasa o Instagram. Tu anuncio en línea hoy.',
+    detail: 'Más visitas. Más contactos. Antes.',
     icon: (
       <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -52,8 +52,8 @@ export default function HowItWorks() {
         >
           <p className="text-accent font-medium text-sm uppercase tracking-wider mb-3">¿Cómo funciona?</p>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
-            De foto cutre a foto pro{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-blue-400">en un solo clic.</span>
+            Llegas. Fotografías. Publicas.{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-blue-400">en 30 minutos.</span>
           </h2>
         </motion.div>
 
