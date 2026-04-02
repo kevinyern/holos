@@ -9,7 +9,8 @@ import { useToast } from '@/components/Toast'
 
 const Pascal3DEditor = dynamic(() => import('@/components/Pascal3DEditor'), { ssr: false })
 
-const TABS = ['Subir fotos', 'Procesando', 'Resultados', 'Editor 3D', 'Tour 3D'] as const
+const ALL_TABS = ['Subir fotos', 'Procesando', 'Resultados', 'Editor 3D', 'Tour 3D'] as const
+const TABS = ALL_TABS // kept for type inference
 type Tab = (typeof TABS)[number]
 type ProcessMode = 'professional' | 'renovation'
 
@@ -125,6 +126,7 @@ function ResultSlider({ originalUrl, processedUrl, name }: { originalUrl: string
 }
 
 export default function ProjectPage({ params }: { params: { id: string } }) {
+  const [userPlan, setUserPlan] = useState<string>('free')
   const [activeTab, setActiveTab] = useState<Tab>('Subir fotos')
   const [uploads, setUploads] = useState<UploadedPhoto[]>([])
   const [processing, setProcessing] = useState<ProcessingPhoto[]>([])
@@ -142,6 +144,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   const [userId, setUserId] = useState<string | null>(null)
   const [newResultIds, setNewResultIds] = useState<Set<string>>(new Set())
   const [photoErrors, setPhotoErrors] = useState<Map<string, string>>(new Map())
+  const [failedFiles, setFailedFiles] = useState<Map<string, UploadedPhoto>>(new Map())
   const [selectedModel, setSelectedModel] = useState('gemini-3-pro-image-preview')
   // Pascal Editor state
   const [editingPhotoId, setEditingPhotoId] = useState<string | null>(null)
@@ -245,6 +248,10 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       setUserId(user.id)
+
+      // Load user plan
+      const { data: userData } = await supabase.from('users').select('plan').eq('id', user.id).single()
+      if (userData?.plan) setUserPlan(userData.plan)
 
       const { data: proj, error: projErr } = await supabase
         .from('projects')
@@ -447,7 +454,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       const url = URL.createObjectURL(file)
       img.onload = () => {
         const canvas = document.createElement('canvas')
-        const MAX = 600
+        const MAX = 1200
         let { width, height } = img
         if (width > MAX || height > MAX) {
           if (width > height) { height = Math.round(height * MAX / width); width = MAX }
@@ -457,7 +464,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         canvas.height = height
         const ctx = canvas.getContext('2d')!
         ctx.drawImage(img, 0, 0, width, height)
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.50)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.80)
         URL.revokeObjectURL(url)
         resolve(dataUrl.split(',')[1])
       }
@@ -517,8 +524,18 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         )
 
         if (!res.ok) {
-          const errBody = await res.text()
-          throw new Error(`Algo fue mal al procesar la foto. Intenta con otra imagen.`)
+          const errBody = await res.json().catch(() => ({}))
+          const msg = errBody.error || 'Error desconocido'
+          if (msg.toLowerCase().includes('heic')) {
+            throw new Error('Foto en formato HEIC. En iPhone ve a Ajustes > Cámara > Formatos > Mayor compatibilidad')
+          }
+          if (msg.includes('limit') || msg.includes('limite') || msg.includes('quota') || msg.includes('cuota')) {
+            throw new Error('Has usado todas tus fotos. Actualiza tu plan en /pricing')
+          }
+          if (msg.includes('size') || msg.includes('large')) {
+            throw new Error('La foto es demasiado grande. Prueba con una imagen mas pequeña.')
+          }
+          throw new Error('Error al procesar. Intenta con otra foto o recarga la página.')
         }
 
         const data = await res.json()
@@ -586,9 +603,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           prev.map((p) => (p.id === photo.id ? { ...p, progress: -1 } : p))
         )
         setPhotoErrors((prev) => new Map(prev).set(photo.id, errMsg))
-        setTimeout(() => {
-          setProcessing((prev) => prev.filter((p) => p.id !== photo.id))
-        }, 3000)
+        setFailedFiles((prev) => new Map(prev).set(photo.id, photo))
       }
     }
 
@@ -678,6 +693,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   ]
 
   const EXTRAS_OPTIONS = [
+    { value: 'Clean and declutter the space completely, remove all mess, organize everything neatly', label: '🧹 Ordenar y limpiar', tip: 'Elimina el desorden y organiza el espacio' },
     { value: 'Golden sunset lighting, warm tones', label: '☀️ Luz de atardecer', tip: 'Tonos dorados y calidos como al atardecer' },
     { value: 'Night ambient atmosphere, interior lights on', label: '🌙 Ambiente nocturno', tip: 'Luces interiores encendidas, ambiente acogedor' },
     { value: 'Add realistic green plants and vegetation', label: '🪴 Plantas', tip: 'Anade plantas verdes decorativas' },
@@ -737,7 +753,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Tabs */}
         <div className="flex gap-1 bg-surface-card border border-surface-border rounded-xl p-1 mb-8 w-full sm:w-fit overflow-x-auto">
-          {TABS.map((tab) => (
+          {ALL_TABS.filter(tab => tab !== 'Tour 3D' || userPlan === 'agency').map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -1041,27 +1057,43 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                           style={{ width: `${photo.progress === -1 ? 100 : photo.progress}%` }}
                         />
                       </div>
-                      {photo.progress === -1 && (
-                        <div className="mt-2">
-                          <p className="text-sm text-red-400">
-                            {photoErrors.get(photo.id) || 'Algo fue mal. Prueba con otra foto mas pequena.'}
-                          </p>
-                          <button
-                            onClick={() => {
-                              const erroredPhoto = uploads.find((u) => u.id === photo.id)
-                              if (erroredPhoto) {
-                                setPhotoErrors((prev) => { const n = new Map(prev); n.delete(photo.id); return n })
-                                processPhotos()
-                              } else {
-                                addToast('Sube la foto de nuevo para reintentar', 'error')
-                              }
-                            }}
-                            className="mt-2 text-xs font-medium px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
-                          >
-                            Reintentar
-                          </button>
-                        </div>
-                      )}
+                      {photo.progress === -1 && (() => {
+                        const errMsg = photoErrors.get(photo.id) || 'Error al procesar. Intenta con otra foto o recarga la página.'
+                        const isQuota = errMsg.includes('/pricing') || errMsg.includes('plan')
+                        return (
+                          <div className="mt-3 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3">
+                            <p className="text-sm text-red-400">{errMsg}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              {isQuota ? (
+                                <Link
+                                  href="/pricing"
+                                  className="text-xs font-medium px-3 py-1.5 rounded-lg bg-accent/20 border border-accent/40 text-accent hover:bg-accent/30 transition-colors"
+                                >
+                                  Ver planes
+                                </Link>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    const savedPhoto = failedFiles.get(photo.id)
+                                    if (savedPhoto) {
+                                      setPhotoErrors((prev) => { const n = new Map(prev); n.delete(photo.id); return n })
+                                      setFailedFiles((prev) => { const n = new Map(prev); n.delete(photo.id); return n })
+                                      setProcessing((prev) => prev.filter((p) => p.id !== photo.id))
+                                      setUploads((prev) => [...prev, savedPhoto])
+                                      setTimeout(() => processPhotos(), 100)
+                                    } else {
+                                      addToast('Sube la foto de nuevo para reintentar', 'error')
+                                    }
+                                  }}
+                                  className="text-xs font-medium px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors"
+                                >
+                                  Reintentar
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
                   </div>
                 )

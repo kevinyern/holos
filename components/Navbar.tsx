@@ -31,8 +31,8 @@ export default function Navbar() {
 
           {/* Desktop nav links */}
           <div className="hidden md:flex items-center gap-8 text-sm text-gray-400">
-            <a href="#como-funciona" className="hover:text-white transition-colors">Cómo funciona</a>
-            <a href="#antes-despues" className="hover:text-white transition-colors">Resultados</a>
+            <a href="/#como-funciona" className="hover:text-white transition-colors">Cómo funciona</a>
+            <a href="/#antes-despues" className="hover:text-white transition-colors">Resultados</a>
             <a href="/demo" className="hover:text-white transition-colors">Demo</a>
             <a href="/pricing" className="hover:text-white transition-colors">Planes</a>
           </div>
@@ -87,10 +87,10 @@ export default function Navbar() {
             className="fixed top-16 left-0 right-0 z-40 bg-surface/95 backdrop-blur-xl border-b border-surface-border md:hidden"
           >
             <div className="flex flex-col px-4 py-4 gap-1">
-              <a href="#como-funciona" onClick={() => setMenuOpen(false)} className="text-gray-300 hover:text-white py-3 px-3 rounded-xl hover:bg-surface-card transition-colors text-sm font-medium">
+              <a href="/#como-funciona" onClick={() => setMenuOpen(false)} className="text-gray-300 hover:text-white py-3 px-3 rounded-xl hover:bg-surface-card transition-colors text-sm font-medium">
                 Cómo funciona
               </a>
-              <a href="#antes-despues" onClick={() => setMenuOpen(false)} className="text-gray-300 hover:text-white py-3 px-3 rounded-xl hover:bg-surface-card transition-colors text-sm font-medium">
+              <a href="/#antes-despues" onClick={() => setMenuOpen(false)} className="text-gray-300 hover:text-white py-3 px-3 rounded-xl hover:bg-surface-card transition-colors text-sm font-medium">
                 Resultados
               </a>
               <a href="/demo" onClick={() => setMenuOpen(false)} className="text-gray-300 hover:text-white py-3 px-3 rounded-xl hover:bg-surface-card transition-colors text-sm font-medium">
