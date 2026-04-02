@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
