@@ -80,14 +80,22 @@ function ResultSlider({ originalUrl, processedUrl, name }: { originalUrl: string
     setHasInteracted(true)
   }, [])
 
+  useEffect(() => {
+    const handleMouseUp = () => { dragging.current = false }
+    const handleMouseMove = (e: MouseEvent) => { if (dragging.current) update(e.clientX) }
+    window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('mousemove', handleMouseMove)
+    }
+  }, [update])
+
   return (
     <div
       ref={containerRef}
       className="relative aspect-[4/3] sm:aspect-[16/10] overflow-hidden cursor-col-resize select-none rounded-t-xl"
       onMouseDown={(e) => { dragging.current = true; update(e.clientX) }}
-      onMouseMove={(e) => { if (dragging.current) update(e.clientX) }}
-      onMouseUp={() => { dragging.current = false }}
-      onMouseLeave={() => { dragging.current = false }}
       onTouchStart={(e) => { e.preventDefault(); update(e.touches[0].clientX) }}
       onTouchMove={(e) => { e.preventDefault(); update(e.touches[0].clientX) }}
     >
