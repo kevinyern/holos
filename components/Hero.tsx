@@ -133,50 +133,21 @@ function RotatingHero() {
 
 // ─── ANIMATED SLIDER ─────────────────────────────────────────────────────────
 
-function AnimatedSlider() {
-  const progress = useMotionValue(0)
-  const clipPercent = useTransform(progress, [0, 1], [8, 92])
-
-  useAnimationFrame((t) => {
-    const cycle = 4000
-    const loopT = (t % cycle) / cycle
-    const eased = (1 - Math.cos(loopT * Math.PI * 2)) / 2
-    progress.set(eased)
-  })
-
+function BeforeAfterStatic() {
   return (
-    <div className="relative w-full h-full overflow-hidden">
-      <div className="absolute inset-0">
-        <img src="/images/hero-despues.jpeg" alt="Después" className="w-full h-full object-cover" loading="eager" decoding="async" />
-        <div className="absolute inset-0 bg-black/10" />
-      </div>
-      <motion.div
-        className="absolute inset-0"
-        style={{ clipPath: useTransform(clipPercent, (v) => `inset(0 ${100 - v}% 0 0)`) }}
-      >
+    <div className="grid grid-cols-2 gap-3 w-full h-full">
+      <div className="relative rounded-xl overflow-hidden">
         <img src="/images/hero-antes.jpeg" alt="Antes" className="w-full h-full object-cover" loading="eager" decoding="async" />
         <div className="absolute inset-0 bg-black/20" />
-      </motion.div>
-      {/* Light line on slider edge */}
-      <motion.div
-        className="absolute top-0 bottom-0 w-[3px] z-20"
-        style={{
-          left: useTransform(clipPercent, (v) => `${v}%`),
-          background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.9) 30%, white 50%, rgba(255,255,255,0.9) 70%, transparent)',
-          boxShadow: '0 0 16px 2px rgba(255,255,255,0.7)',
-        }}
-      >
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-xl flex items-center justify-center">
-          <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l-3 3 3 3M16 9l3 3-3 3" />
-          </svg>
+        <div className="absolute top-3 left-3">
+          <span className="bg-black/70 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full tracking-widest uppercase">Antes</span>
         </div>
-      </motion.div>
-      <div className="absolute top-4 left-4 z-30">
-        <span className="bg-black/60 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full tracking-widest uppercase">Antes</span>
       </div>
-      <div className="absolute top-4 right-4 z-30">
-        <span className="bg-accent/90 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full tracking-widest uppercase">Después</span>
+      <div className="relative rounded-xl overflow-hidden">
+        <img src="/images/hero-despues.jpeg" alt="Después" className="w-full h-full object-cover" loading="eager" decoding="async" />
+        <div className="absolute top-3 left-3">
+          <span className="bg-accent/90 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full tracking-widest uppercase">Después</span>
+        </div>
       </div>
     </div>
   )
@@ -258,7 +229,7 @@ export default function Hero() {
           className="relative"
         >
           <div className="aspect-[4/3] sm:aspect-[16/9] max-w-4xl mx-auto rounded-2xl border border-white/10 overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.6)]">
-            <AnimatedSlider />
+            <BeforeAfterStatic />
           </div>
           <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-2/3 h-12 bg-accent/15 blur-3xl rounded-full" />
         </motion.div>
