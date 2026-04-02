@@ -413,12 +413,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   }
 
   const handleFiles = useCallback((files: FileList | File[]) => {
-    const tooLarge = Array.from(files).filter(f => f.size > 15 * 1024 * 1024)
-    if (tooLarge.length > 0) {
-      addToast(`${tooLarge.map(f => f.name).join(', ')} supera los 15 MB. Reduce el tamaño antes de subir.`, 'error')
-    }
     const newPhotos: UploadedPhoto[] = Array.from(files)
-      .filter((f) => f.type.startsWith('image/') && f.size <= 15 * 1024 * 1024)
+      .filter((f) => f.type.startsWith('image/'))
       .map((file) => ({
         id: crypto.randomUUID(),
         name: file.name,
@@ -468,7 +464,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       const url = URL.createObjectURL(file)
       img.onload = () => {
         const canvas = document.createElement('canvas')
-        const MAX = 1200
+        const MAX = 1800
         let { width, height } = img
         if (width > MAX || height > MAX) {
           if (width > height) { height = Math.round(height * MAX / width); width = MAX }
@@ -505,10 +501,21 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         )
 
         const timestamp = Date.now()
+        // Comprimir imagen antes de subir si pesa más de 2MB
+        let fileToUpload: File | Blob = photo.file
+        if (photo.file.size > 2 * 1024 * 1024) {
+          try {
+            const compressedBase64 = await fileToBase64(photo.file)
+            const compressedBytes = Uint8Array.from(atob(compressedBase64), c => c.charCodeAt(0))
+            fileToUpload = new Blob([compressedBytes], { type: 'image/jpeg' })
+          } catch {
+            fileToUpload = photo.file
+          }
+        }
         const originalPath = `${userId}/${params.id}/original-${timestamp}-${photo.name}`
         const { error: uploadError, data: uploadData } = await supabase.storage
           .from('PHOTOS')
-          .upload(originalPath, photo.file, { upsert: true })
+          .upload(originalPath, fileToUpload, { upsert: true })
 
         if (uploadError) throw new Error(`Error subiendo foto: ${uploadError.message}`)
         if (!uploadData?.path) throw new Error('Upload completado pero sin path — reintenta')
