@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       'success_url': 'https://www.photoagent.pro/dashboard?success=true',
       'cancel_url': 'https://www.photoagent.pro/pricing',
       'metadata[userId]': userId,
+      'custom_text[submit][message]': 'PhotoAgent — IA para fotografía inmobiliaria',
     })
 
     const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
