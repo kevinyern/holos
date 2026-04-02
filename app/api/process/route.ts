@@ -9,8 +9,8 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
 const PLAN_QUOTAS: Record<string, number> = {
   free: 10,
-  starter: 150,
-  pro: 750,
+  starter: 100,
+  pro: 500,
   agency: 2000,
 }
 
@@ -161,8 +161,8 @@ export async function POST(req: NextRequest) {
     const prompt = getPrompt(processType as ProcessType, userRequest, style, extras)
 
     const MODELS = [
-      requestedModel || 'gemini-3-pro-image-preview',
-      'gemini-2.0-flash-preview-image-generation',
+      requestedModel || 'gemini-2.5-flash-image',
+      'gemini-2.5-flash-image',
     ].filter((v, i, a) => a.indexOf(v) === i)
 
     let lastError = 'No image returned'

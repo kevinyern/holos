@@ -10,7 +10,7 @@ const plans = [
     price: '79',
     period: '/mes',
     description: 'Para agentes que publican rápido',
-    quota: '150 fotos/mes',
+    quota: '100 fotos/mes',
     features: [
       'Foto móvil → foto de agencia con IA',
       'Relighting: 4 momentos del día',
@@ -28,7 +28,7 @@ const plans = [
     price: '199',
     period: '/mes',
     description: 'Para agencias que quieren más',
-    quota: '750 fotos/mes',
+    quota: '500 fotos/mes',
     features: [
       'Todo lo del Starter',
       'Limpieza y orden automático (declutter)',
@@ -255,7 +255,7 @@ export default function Pricing() {
               </thead>
               <tbody className="divide-y divide-surface-border">
                 {[
-                  ['Fotos/mes', '150', '750', '2.000'],
+                  ['Fotos/mes', '100', '500', '2.000'],
                   ['Foto móvil → agencia', '✅', '✅', '✅'],
                   ['Relighting', '✅', '✅', '✅'],
                   ['Declutter / orden', '❌', '✅', '✅'],
