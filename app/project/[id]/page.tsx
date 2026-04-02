@@ -631,6 +631,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   const relightPhoto = async (photo: ResultPhoto, relightType: 'relight-dawn' | 'relight-day' | 'relight-night') => {
     if (!userId) return
     setRelightingId(photo.id)
+    addToast('Procesando iluminación — puede tardar hasta 60 segundos', 'success')
     try {
       // Usamos la URL directamente — el servidor fetchea la imagen (evita límite 4.5MB)
       const sourceUrl = photo.processedUrl || photo.originalUrl
@@ -1357,7 +1358,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                               {relightingId === photo.id ? (
                                 <span className="flex items-center gap-1.5">
                                   <span className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                                  Cambiando...
+                                  ~30 seg...
                                 </span>
                               ) : rl.label}
                             </button>
