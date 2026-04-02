@@ -784,22 +784,39 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             <div className="mb-8">
               <h3 className="text-lg font-semibold text-white mb-4">Que quieres hacer?</h3>
               <div className="grid grid-cols-2 gap-3">
-                {MODE_OPTIONS.map((mode) => (
-                  <button
-                    key={mode.value}
-                    onClick={() => setProcessMode(mode.value)}
-                    className={`text-left px-5 py-4 rounded-xl border-2 transition-all ${
-                      processMode === mode.value
-                        ? 'border-accent bg-accent/10 text-white'
-                        : 'border-surface-border bg-surface-card text-gray-400 hover:border-gray-600'
-                    }`}
-                  >
-                    <p className={`text-base font-semibold ${processMode === mode.value ? 'text-accent' : 'text-white'}`}>
-                      {mode.label}
-                    </p>
-                    <p className="text-sm text-gray-400 mt-0.5">{mode.desc}</p>
-                  </button>
-                ))}
+                {MODE_OPTIONS.map((mode) => {
+                  const locked = mode.value === 'renovation' && (userPlan === 'free' || userPlan === 'starter')
+                  if (locked) {
+                    return (
+                      <a
+                        key={mode.value}
+                        href="/pricing"
+                        className="text-left px-5 py-4 rounded-xl border-2 border-surface-border bg-surface-card text-gray-400 hover:border-gray-600 transition-all cursor-pointer"
+                      >
+                        <p className="text-base font-semibold text-white flex items-center gap-2">
+                          🔒 {mode.label}
+                        </p>
+                        <p className="text-sm text-gray-400 mt-0.5">Plan Professional</p>
+                      </a>
+                    )
+                  }
+                  return (
+                    <button
+                      key={mode.value}
+                      onClick={() => setProcessMode(mode.value)}
+                      className={`text-left px-5 py-4 rounded-xl border-2 transition-all ${
+                        processMode === mode.value
+                          ? 'border-accent bg-accent/10 text-white'
+                          : 'border-surface-border bg-surface-card text-gray-400 hover:border-gray-600'
+                      }`}
+                    >
+                      <p className={`text-base font-semibold ${processMode === mode.value ? 'text-accent' : 'text-white'}`}>
+                        {mode.label}
+                      </p>
+                      <p className="text-sm text-gray-400 mt-0.5">{mode.desc}</p>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -898,7 +915,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                           { label: 'Pintar paredes', text: 'paint all walls in clean bright white', tip: 'Paredes blancas y luminosas' },
                           { label: 'Suelo de madera', text: 'replace the floor with light natural wood flooring', tip: 'Parquet de madera clara natural' },
                           { label: 'Acabados de lujo', text: 'upgrade all finishes to premium luxury quality', tip: 'Materiales premium y acabados de alta gama' },
-                        ].map((chip) => (
+                        ].filter((chip) => !chip.text.includes('declutter') || userPlan === 'pro' || userPlan === 'agency').map((chip) => (
                           <Tooltip key={chip.label} text={chip.tip}>
                             <button
                               type="button"
