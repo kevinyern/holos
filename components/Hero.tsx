@@ -147,14 +147,14 @@ function AnimatedSlider() {
   return (
     <div className="relative w-full h-full overflow-hidden">
       <div className="absolute inset-0">
-        <img src="/images/orden-bien-1.png" alt="Después" className="w-full h-full object-cover" loading="eager" decoding="async" />
+        <img src="/images/hero-despues.jpeg" alt="Después" className="w-full h-full object-cover" loading="eager" decoding="async" />
         <div className="absolute inset-0 bg-black/10" />
       </div>
       <motion.div
         className="absolute inset-0"
         style={{ clipPath: useTransform(clipPercent, (v) => `inset(0 ${100 - v}% 0 0)`) }}
       >
-        <img src="/images/orden-mal-1.png" alt="Antes" className="w-full h-full object-cover" loading="eager" decoding="async" />
+        <img src="/images/hero-antes.jpeg" alt="Antes" className="w-full h-full object-cover" loading="eager" decoding="async" />
         <div className="absolute inset-0 bg-black/20" />
       </motion.div>
       {/* Light line on slider edge */}
