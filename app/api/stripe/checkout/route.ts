@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import Stripe from 'stripe'
 
 export async function POST(req: NextRequest) {
   try {
     if (!process.env.STRIPE_SECRET_KEY) {
       return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
     }
-
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
     const { priceId } = await req.json()
 
@@ -35,14 +32,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ redirect: '/auth?next=/pricing' }, { status: 200 })
     }
 
-    const session = await stripe.checkout.sessions.create({
+    // Use Stripe REST API directly — avoids SDK network issues
+    const body = new URLSearchParams({
       mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: 'https://www.photoagent.pro/dashboard?success=true',
-      cancel_url: 'https://www.photoagent.pro/pricing',
-      metadata: { userId },
+      'payment_method_types[0]': 'card',
+      'line_items[0][price]': priceId,
+      'line_items[0][quantity]': '1',
+      'success_url': 'https://www.photoagent.pro/dashboard?success=true',
+      'cancel_url': 'https://www.photoagent.pro/pricing',
+      'metadata[userId]': userId,
     })
+
+    const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body.toString(),
+    })
+
+    const session = await stripeRes.json()
+
+    if (!stripeRes.ok) {
+      return NextResponse.json({ error: session.error?.message || 'Stripe error' }, { status: 500 })
+    }
 
     return NextResponse.json({ url: session.url })
   } catch (error: any) {
