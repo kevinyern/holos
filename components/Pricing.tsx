@@ -46,11 +46,10 @@ const plans = [
     planKey: 'agency',
     price: '699',
     period: '/mes',
-    description: 'Para agencias grandes',
+    description: 'Para agencias con volumen alto',
     quota: '2.000 fotos/mes',
     features: [
       'Todo lo del Professional',
-      'Marca blanca',
       'Tour 3D navegable',
       'Proyectos ilimitados',
       'Acceso anticipado a nuevas features',
@@ -269,7 +268,6 @@ export default function Pricing() {
                   ['Relighting', '✅', '✅', '✅'],
                   ['Declutter / orden', '❌', '✅', '✅'],
                   ['Reforma virtual', '❌', '✅', '✅'],
-                  ['Marca blanca', '❌', '❌', '✅'],
                   ['Tour 3D', '❌', '❌', '✅'],
                   ['Soporte', 'Email', 'Prioritario', 'Dedicado'],
                 ].map(([feature, starter, pro, agency]) => (

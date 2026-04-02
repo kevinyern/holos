@@ -8,18 +8,18 @@ export const metadata = {
 
 const examples = [
   {
-    before: '/images/orden-antes-2.jpeg',
-    after: '/images/orden-despues-2.jpeg',
+    before: '/images/orden-antes.jpeg',
+    after: '/images/orden-despues.jpeg',
     label: 'Salón',
   },
   {
-    before: '/images/orden-antes-3.jpeg',
-    after: '/images/orden-despues-3.jpeg',
+    before: '/images/orden-antes-5.jpeg',
+    after: '/images/orden-despues-5.jpeg',
     label: 'Habitación',
   },
   {
-    before: '/images/orden-antes-4.jpeg',
-    after: '/images/orden-despues-4.jpeg',
+    before: '/images/hero-antes.jpeg',
+    after: '/images/hero-despues.jpeg',
     label: 'Cocina',
   },
   {
@@ -33,9 +33,9 @@ const examples = [
     label: 'Reforma virtual',
   },
   {
-    before: '/images/antes-obra-3.jpeg',
-    after: '/images/despues-obra-3.jpeg',
-    label: 'Acabados profesionales',
+    before: '/images/amanecer.jpeg',
+    after: '/images/anochecer.jpeg',
+    label: 'Relighting: amanecer → anochecer',
   },
 ]
 
