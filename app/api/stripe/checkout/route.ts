@@ -4,9 +4,11 @@ import Stripe from 'stripe'
 
 export async function POST(req: NextRequest) {
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      apiVersion: '2026-03-25.dahlia' as any,
-    })
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
+    }
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
     const { priceId } = await req.json()
 
@@ -14,12 +16,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'priceId required' }, { status: 400 })
     }
 
-    if (!process.env.STRIPE_SECRET_KEY) {
-      return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
-    }
-
     // Get userId from Supabase session server-side
-    const response = NextResponse.next()
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -35,7 +32,6 @@ export async function POST(req: NextRequest) {
     const userId = user?.id || ''
 
     if (!userId) {
-      // Redirect to auth instead of erroring
       return NextResponse.json({ redirect: '/auth?next=/pricing' }, { status: 200 })
     }
 
