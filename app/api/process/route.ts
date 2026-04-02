@@ -8,7 +8,7 @@ export const maxDuration = 60
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
 const PLAN_QUOTAS: Record<string, number> = {
-  free: 3,
+  free: 10,
   starter: 150,
   pro: 750,
   agency: 2000,

@@ -83,7 +83,7 @@ function OnboardingOverlay({ onClose }: { onClose: () => void }) {
 }
 
 const PLAN_QUOTAS: Record<string, number> = {
-  free: 3,
+  free: 10,
   starter: 150,
   pro: 750,
   agency: 2000,
