@@ -158,9 +158,10 @@ function SliderCard({ before, after, label }: { before: string; after: string; l
 // ─── SECCIÓN PRINCIPAL ───────────────────────────────────────────────────────
 
 const fotoProPairs = [
-  { before: '/images/orden-antes-2.jpeg', after: '/images/orden-despues-2.jpeg', label: 'Foto de móvil → Foto pro' },
-  { before: '/images/orden-antes-3.jpeg', after: '/images/orden-despues-3.jpeg', label: 'Foto de móvil → Foto pro' },
-  { before: '/images/orden-antes-4.jpeg', after: '/images/orden-despues-4.jpeg', label: 'Foto de móvil → Foto pro' },
+  { before: '/images/antes-obra-6.jpeg',  after: '/images/despues-obra-6.jpeg',  label: 'Foto de móvil → Foto pro' },
+  { before: '/images/orden-antes.jpeg',   after: '/images/orden-despues.jpeg',   label: 'Foto de móvil → Foto pro' },
+  { before: '/images/orden-antes-5.jpeg', after: '/images/orden-despues-5.jpeg', label: 'Foto de móvil → Foto pro' },
+  { before: '/images/hero-antes.jpeg',    after: '/images/hero-despues.jpeg',    label: 'Foto de móvil → Foto pro' },
 ]
 const obraPairs = [
   { before: '/images/antes-obra-1.jpeg', after: '/images/despues-obra-1.jpeg', label: 'Reforma integral' },
