@@ -99,34 +99,33 @@ export async function POST(req: NextRequest) {
       .eq('id', authUser.id)
       .single()
 
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
+    // Quota check — graceful: if columns don't exist yet, skip and allow
+    if (!userError && userData && userData.photos_used != null) {
+      // Reset quota if period expired
+      if (userData.quota_reset_at && new Date(userData.quota_reset_at) <= new Date()) {
+        await supabaseAdmin.from('users').update({
+          photos_used: 0,
+          quota_reset_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        }).eq('id', authUser.id)
+        userData.photos_used = 0
+      }
 
-    // Reset quota if period expired
-    if (new Date(userData.quota_reset_at) <= new Date()) {
-      await supabaseAdmin.from('users').update({
-        photos_used: 0,
-        quota_reset_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      }).eq('id', authUser.id)
-      userData.photos_used = 0
-    }
+      const quota = PLAN_QUOTAS[userData.plan] ?? 3
+      if (userData.photos_used >= quota) {
+        return NextResponse.json({
+          error: 'Quota exceeded',
+          plan: userData.plan,
+          used: userData.photos_used,
+        }, { status: 429 })
+      }
 
-    const quota = PLAN_QUOTAS[userData.plan] ?? 3
-    if (userData.photos_used >= quota) {
-      return NextResponse.json({
-        error: 'Quota exceeded',
-        plan: userData.plan,
-        used: userData.photos_used,
-      }, { status: 429 })
-    }
-
-    // Increment photos_used BEFORE calling Gemini (prevent race conditions)
-    const { error: rpcError } = await supabaseAdmin.rpc('increment_photos_used', { uid: authUser.id })
-    if (rpcError) {
-      await supabaseAdmin.from('users').update({
-        photos_used: userData.photos_used + 1,
-      }).eq('id', authUser.id)
+      // Increment photos_used BEFORE calling Gemini (prevent race conditions)
+      const { error: rpcError } = await supabaseAdmin.rpc('increment_photos_used', { uid: authUser.id })
+      if (rpcError) {
+        await supabaseAdmin.from('users').update({
+          photos_used: (userData.photos_used ?? 0) + 1,
+        }).eq('id', authUser.id).catch(() => {})
+      }
     }
 
     // --- Original process logic ---
