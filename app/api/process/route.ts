@@ -25,30 +25,11 @@ type ProcessType =
 function getPrompt(processType: ProcessType, userRequest?: string, style?: string, extras?: string[]): string {
   switch (processType) {
     case 'professional': {
-      const styleLine = style && style !== 'none'
-        ? `- Decorative style: ${style}`
-        : ''
-      const extrasLines = extras && extras.length > 0
-        ? extras.map((e) => `- ${e}`).join('\n')
-        : ''
-
-      return `You are a professional real estate photo retoucher. Enhance this photo following these rules:
-
-STRUCTURE — NEVER CHANGE:
-- Keep 100% identical: walls, doors, windows, stairs, ceiling height, floor plan, room shape
-- Same camera angle, framing, perspective
-- Never add or remove architectural elements
-- Never invent furniture or objects not visible in the original
-
-ENHANCEMENTS TO APPLY:
-- Fix surfaces: clean walls, repair plaster if damaged, paint if needed
-- Natural bright daylight lighting, soft shadows, airy feel
-- Remove clutter, dirt, construction debris
-- Correct white balance and exposure
-${styleLine}
-${extrasLines}
-
-OUTPUT: Photorealistic professional real estate photograph. Same room. Better version.`
+      const styleLine = style && style !== 'none' ? `Decorative style: ${style}. ` : ''
+      const extrasLines = extras && extras.length > 0 ? extras.join('. ') + '. ' : ''
+      return `Architectural interior photography. Transform this photo into a stunning professional real estate photograph.
+${extrasLines}${styleLine}
+Correct perspective so all lines are perfectly straight. Clean and organize the scene: remove clutter, straighten objects. Use bright soft natural daylight, evenly illuminating the room with a clean airy look. Neutral whites, natural wood tones, high dynamic range, realistic lighting. Photorealistic professional real estate photo.`
     }
 
     case 'declutter':
@@ -144,11 +125,23 @@ export async function POST(req: NextRequest) {
       if (buf.byteLength === 0) {
         return NextResponse.json({ error: 'La imagen está vacía. Vuelve a subir la foto.' }, { status: 400 })
       }
-      imgData = Buffer.from(buf).toString('base64')
+      const rawBuf = Buffer.from(buf)
+      if (rawBuf.byteLength > 8 * 1024 * 1024) {
+        return NextResponse.json({ error: 'La imagen es demasiado grande. Reduce el tamaño a menos de 8 MB.' }, { status: 400 })
+      }
+      imgData = rawBuf.toString('base64')
     }
 
     if (!imgData) {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 })
+    }
+
+    // Reject HEIC/HEIF — not supported by Gemini
+    if (mimeType && (mimeType.includes('heic') || mimeType.includes('heif'))) {
+      return NextResponse.json(
+        { error: 'Formato HEIC no soportado. En iPhone ve a Ajustes > Cámara > Formatos y selecciona "Mayor compatibilidad" para guardar en JPEG.' },
+        { status: 400 }
+      )
     }
 
     if (processType === 'renovation' && !userRequest) {
@@ -161,12 +154,14 @@ export async function POST(req: NextRequest) {
     const prompt = getPrompt(processType as ProcessType, userRequest, style, extras)
 
     const MODELS = [
-      requestedModel || 'gemini-2.5-flash-image',
+      requestedModel || 'gemini-3-pro-image-preview',
       'gemini-2.5-flash-image',
+      'gemini-2.0-flash-preview-image-generation',
     ].filter((v, i, a) => a.indexOf(v) === i)
 
     let lastError = 'No image returned'
 
+    console.log('PROCESS REQUEST:', { processType, style, extras: extras?.length, userRequest: userRequest?.slice(0,50) })
     for (const modelId of MODELS) {
       try {
         const model = genAI.getGenerativeModel({ model: modelId })
@@ -209,6 +204,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: lastError }, { status: 500 })
   } catch (error: any) {
     console.error('Process error:', error)
+    console.error('FULL ERROR:', JSON.stringify(error, null, 2), error.stack)
     return NextResponse.json(
       { error: error.message || 'Failed to process image' },
       { status: 500 }
