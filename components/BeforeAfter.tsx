@@ -158,18 +158,16 @@ function SliderCard({ before, after, label }: { before: string; after: string; l
 // ─── SECCIÓN PRINCIPAL ───────────────────────────────────────────────────────
 
 const fotoProPairs = [
-  { before: '/images/antes-obra-6.jpeg',  after: '/images/despues-obra-6.jpeg',  label: 'Foto de móvil → Foto pro' },
-  { before: '/images/orden-antes.jpeg',   after: '/images/orden-despues.jpeg',   label: 'Foto de móvil → Foto pro' },
-  { before: '/images/orden-antes-5.jpeg', after: '/images/orden-despues-5.jpeg', label: 'Foto de móvil → Foto pro' },
-  { before: '/images/hero-antes.jpeg',    after: '/images/hero-despues.jpeg',    label: 'Foto de móvil → Foto pro' },
+  { before: '/images/antes-obra-6.jpeg',     after: '/images/despues-obra-6.jpeg',     label: 'Reforma integral' },
+  { before: '/images/antes-obra-1.jpeg',     after: '/images/despues-obra-1.jpeg',     label: 'Reforma integral' },
+  { before: '/images/orden-antes.jpeg',      after: '/images/orden-despues.jpeg',      label: 'Foto de móvil → Foto pro' },
+  { before: '/images/antes-obra-2.jpeg',     after: '/images/despues-obra-2.jpeg',     label: 'Reforma visualizada' },
+  { before: '/images/orden-antes-5.jpeg',    after: '/images/orden-despues-5.jpeg',    label: 'Foto de móvil → Foto pro' },
+  { before: '/images/antes-obra-3.jpeg',     after: '/images/despues-obra-3.jpeg',     label: 'Transformación total' },
+  { before: '/images/hero-antes.jpeg',       after: '/images/hero-despues.jpeg',       label: 'Foto de móvil → Foto pro' },
+  { before: '/images/antes-obra-4-new.jpeg', after: '/images/despues-obra-4.jpeg',     label: 'Reforma visualizada' },
 ]
-const obraPairs = [
-  { before: '/images/antes-obra-6.jpeg',      after: '/images/despues-obra-6.jpeg',      label: 'Reforma integral' },
-  { before: '/images/antes-obra-1.jpeg',      after: '/images/despues-obra-1.jpeg',      label: 'Reforma integral' },
-  { before: '/images/antes-obra-2.jpeg',      after: '/images/despues-obra-2.jpeg',      label: 'Reforma visualizada' },
-  { before: '/images/antes-obra-3.jpeg',      after: '/images/despues-obra-3.jpeg',      label: 'Transformación total' },
-  { before: '/images/antes-obra-4-new.jpeg',  after: '/images/despues-obra-4.jpeg',      label: 'Reforma visualizada' },
-]
+const obraPairs = fotoProPairs // unified
 
 export default function BeforeAfter() {
   return (
@@ -216,23 +214,7 @@ export default function BeforeAfter() {
           <RelightingStrip />
         </motion.div>
 
-        <div className="border-t border-surface-border/50 max-w-4xl mx-auto" />
 
-        {/* Franja 3: obras */}
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
-          <div className="text-center mb-16 pt-8">
-            <p className="text-accent font-medium text-sm uppercase tracking-wider mb-3">Reforma virtual</p>
-            <h3 className="text-3xl md:text-4xl font-bold tracking-tight">De obra a listo para vender</h3>
-            <p className="text-gray-400 mt-4 max-w-lg mx-auto text-sm leading-relaxed">
-              La IA visualiza el inmueble terminado. El comprador ve el potencial, no el estado actual.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 max-w-6xl mx-auto">
-            {obraPairs.map((pair) => (
-              <SliderCard key={pair.before} {...pair} />
-            ))}
-          </div>
-        </motion.div>
 
       </div>
     </section>
