@@ -126,8 +126,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'La imagen está vacía. Vuelve a subir la foto.' }, { status: 400 })
       }
       const rawBuf = Buffer.from(buf)
-      if (rawBuf.byteLength > 8 * 1024 * 1024) {
-        return NextResponse.json({ error: 'La imagen es demasiado grande. Reduce el tamaño a menos de 8 MB.' }, { status: 400 })
+      if (rawBuf.byteLength > 15 * 1024 * 1024) {
+        return NextResponse.json({ error: 'La imagen supera los 15 MB. Reduce el tamaño antes de subir.' }, { status: 400 })
       }
       imgData = rawBuf.toString('base64')
     }
@@ -143,6 +143,9 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Normalize PNG to JPEG mime for Gemini compatibility
+    const effectiveMimeType = (mimeType && mimeType.includes('png')) ? 'image/png' : (mimeType || 'image/jpeg')
 
     if (processType === 'renovation' && !userRequest) {
       return NextResponse.json(
@@ -170,7 +173,7 @@ export async function POST(req: NextRequest) {
             role: 'user',
             parts: [
               { text: prompt },
-              { inlineData: { mimeType: mimeType || 'image/jpeg', data: imgData } }
+              { inlineData: { mimeType: effectiveMimeType, data: imgData } }
             ]
           }],
           generationConfig: {

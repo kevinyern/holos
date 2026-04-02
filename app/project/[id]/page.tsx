@@ -413,8 +413,12 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   }
 
   const handleFiles = useCallback((files: FileList | File[]) => {
+    const tooLarge = Array.from(files).filter(f => f.size > 15 * 1024 * 1024)
+    if (tooLarge.length > 0) {
+      addToast(`${tooLarge.map(f => f.name).join(', ')} supera los 15 MB. Reduce el tamaño antes de subir.`, 'error')
+    }
     const newPhotos: UploadedPhoto[] = Array.from(files)
-      .filter((f) => f.type.startsWith('image/'))
+      .filter((f) => f.type.startsWith('image/') && f.size <= 15 * 1024 * 1024)
       .map((file) => ({
         id: crypto.randomUUID(),
         name: file.name,
