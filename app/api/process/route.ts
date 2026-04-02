@@ -27,9 +27,26 @@ function getPrompt(processType: ProcessType, userRequest?: string, style?: strin
     case 'professional': {
       const styleLine = style && style !== 'none' ? `Decorative style: ${style}. ` : ''
       const extrasLines = extras && extras.length > 0 ? extras.join('. ') + '. ' : ''
-      return `Architectural interior photography. Transform this photo into a stunning professional real estate photograph.
+      return `You are a professional real estate photographer retouching this photo for a property listing.
+
+MANDATORY CLEANUP — remove ALL of these without exception:
+- Cleaning tools: mops, brooms, buckets, sponges, cleaning products
+- Personal items: clothes, bags, shoes, personal belongings
+- Cables, wires, extension cords
+- Trash, debris, dirt marks
+- Temporary objects that don't belong in a staged property
+- Any object that makes the space look lived-in or messy
+
+REPLACE removed objects with: clean wall, floor, or matching background surface.
+
+ENHANCEMENTS:
+- Correct perspective: make all vertical and horizontal lines perfectly straight
+- Lighting: bright natural daylight, soft shadows, airy feel
+- Colors: neutral whites, natural tones, high dynamic range
+- Surfaces: clean walls, clean floors
 ${extrasLines}${styleLine}
-Correct perspective so all lines are perfectly straight. Clean and organize the scene: remove clutter, straighten objects. Use bright soft natural daylight, evenly illuminating the room with a clean airy look. Neutral whites, natural wood tones, high dynamic range, realistic lighting. Photorealistic professional real estate photo.`
+
+OUTPUT: Photorealistic professional real estate photograph ready for Idealista or Fotocasa listing. Same room, same structure, cleaned and enhanced.`
     }
 
     case 'declutter':
