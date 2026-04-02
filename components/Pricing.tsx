@@ -128,7 +128,7 @@ export default function Pricing() {
     try {
       const priceId = priceIds[planKey]
       if (!priceId) {
-        window.location.href = '/auth?next=/pricing'
+        setLoading(null)
         return
       }
       const res = await fetch('/api/stripe/checkout', {
@@ -137,15 +137,15 @@ export default function Pricing() {
         body: JSON.stringify({ priceId }),
       })
       const data = await res.json()
-      if (data.redirect) {
-        window.location.href = data.redirect
-      } else if (data.url) {
+      if (data.url) {
         window.location.href = data.url
+      } else if (data.redirect) {
+        window.location.href = data.redirect
       } else {
-        window.location.href = '/auth?next=/pricing'
+        console.error('Stripe error:', data.error)
       }
     } catch (e) {
-      window.location.href = '/auth?next=/pricing'
+      console.error('Checkout error:', e)
     }
     setLoading(null)
   }
