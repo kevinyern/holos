@@ -164,10 +164,11 @@ const fotoProPairs = [
   { before: '/images/hero-antes.jpeg',    after: '/images/hero-despues.jpeg',    label: 'Foto de móvil → Foto pro' },
 ]
 const obraPairs = [
-  { before: '/images/antes-obra-1.jpeg', after: '/images/despues-obra-1.jpeg', label: 'Reforma integral' },
-  { before: '/images/antes-obra-2.jpeg', after: '/images/despues-obra-2.jpeg', label: 'Reforma visualizada' },
-  { before: '/images/antes-obra-4.png', after: '/images/despues-obra-4.jpeg', label: 'Reforma visualizada' },
-  { before: '/images/antes-obra-3.jpeg', after: '/images/despues-obra-3.jpeg', label: 'Transformación total' },
+  { before: '/images/antes-obra-6.jpeg',      after: '/images/despues-obra-6.jpeg',      label: 'Reforma integral' },
+  { before: '/images/antes-obra-1.jpeg',      after: '/images/despues-obra-1.jpeg',      label: 'Reforma integral' },
+  { before: '/images/antes-obra-2.jpeg',      after: '/images/despues-obra-2.jpeg',      label: 'Reforma visualizada' },
+  { before: '/images/antes-obra-3.jpeg',      after: '/images/despues-obra-3.jpeg',      label: 'Transformación total' },
+  { before: '/images/antes-obra-4-new.jpeg',  after: '/images/despues-obra-4.jpeg',      label: 'Reforma visualizada' },
 ]
 
 export default function BeforeAfter() {
