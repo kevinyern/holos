@@ -2,27 +2,21 @@
 
 import { motion } from 'framer-motion'
 
-const testimonials = [
+const benefits = [
   {
-    name: 'Carlos Mendoza',
-    role: 'Agente Senior · Engel & Völkers Madrid',
-    result: 'Ahorra 150€/foto en fotografía',
-    text: 'En 30 segundos tengo fotos que antes me costaban 150€ con fotógrafo. Mis anuncios se venden en la mitad de tiempo.',
-    avatar: 'https://ui-avatars.com/api/?name=Carlos+Mendoza&background=1e40af&color=fff&size=80',
+    icon: '💰',
+    title: 'Ahorra 150€ por propiedad',
+    description: 'Un fotógrafo cobra 150-300€. Aquí son centavos por foto.',
   },
   {
-    name: 'Laura Puig',
-    role: 'Directora Comercial · RE/MAX Barcelona',
-    result: 'Ahorra 200€/mes en fotografía',
-    text: 'Lo usamos con todo el equipo. La calidad es brutal para ser automático. Nuestros clientes no saben que no hay fotógrafo.',
-    avatar: 'https://ui-avatars.com/api/?name=Laura+Puig&background=0f766e&color=fff&size=80',
+    icon: '⚡',
+    title: 'De la visita al anuncio en 10 minutos',
+    description: 'Haces las fotos, subes, descargas. Sin esperar al fotógrafo.',
   },
   {
-    name: 'Javier Romero',
-    role: 'Agente Inmobiliario · Century 21 Valencia',
-    result: 'Publica en Idealista en 30 segundos',
-    text: 'Antes tardaba días en tener fotos decentes. Ahora subo la foto del móvil y en medio minuto está lista para Idealista.',
-    avatar: 'https://ui-avatars.com/api/?name=Javier+Romero&background=7c3aed&color=fff&size=80',
+    icon: '📈',
+    title: 'Más clics en Idealista',
+    description: 'Las fotos profesionales generan hasta 3x más contactos en portales.',
   },
 ]
 
@@ -37,47 +31,25 @@ export default function Testimonials() {
           transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
-          <p className="text-accent font-medium text-sm uppercase tracking-wider mb-3">Lo que dicen los agentes</p>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Resultados reales.{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-blue-400">Agentes reales.</span>
+            Por qué los agentes lo eligen
           </h2>
         </motion.div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {testimonials.map((t, i) => (
+          {benefits.map((b, i) => (
             <motion.div
-              key={t.name}
+              key={b.title}
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: i * 0.1 }}
               whileHover={{ y: -4 }}
-              className="bg-surface-card border border-surface-border rounded-2xl p-6 flex flex-col gap-4 hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-shadow"
+              className="bg-surface-card border border-surface-border rounded-2xl p-6 flex flex-col gap-4 hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-shadow text-center"
             >
-              {/* Stars */}
-              <div className="text-yellow-400 text-base tracking-wide">⭐⭐⭐⭐⭐</div>
-
-              <p className="text-gray-300 text-sm leading-relaxed flex-1">&ldquo;{t.text}&rdquo;</p>
-
-              <div className="flex items-center gap-3">
-                <img
-                  src={t.avatar}
-                  alt={t.name}
-                  width={40}
-                  height={40}
-                  className="rounded-full"
-                />
-                <div>
-                  <p className="text-white text-sm font-semibold">{t.name}</p>
-                  <p className="text-gray-500 text-xs">{t.role}</p>
-                </div>
-              </div>
-
-              {/* Result badge */}
-              <div className="border-t border-surface-border pt-3">
-                <p className="text-accent text-xs font-semibold">✓ {t.result}</p>
-              </div>
+              <div className="text-4xl">{b.icon}</div>
+              <h3 className="text-white text-lg font-semibold">{b.title}</h3>
+              <p className="text-gray-400 text-sm leading-relaxed">{b.description}</p>
             </motion.div>
           ))}
         </div>

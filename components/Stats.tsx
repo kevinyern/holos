@@ -4,9 +4,9 @@ import { motion, useInView } from 'framer-motion'
 import { useRef, useEffect, useState } from 'react'
 
 const stats = [
-  { value: '30s', label: 'Tiempo de procesado', description: 'Tu foto lista en segundos' },
-  { value: 'Desde 79€', label: 'Precio de entrada', description: 'Sin compromisos de permanencia' },
-  { value: '5★', label: 'Valoración media', description: 'De agentes inmobiliarios reales' },
+  { value: '~30 seg', label: 'Tiempo de procesado', description: 'Por foto' },
+  { value: '150€', label: 'Ahorro medio por piso', description: 'vs fotógrafo profesional' },
+  { value: '79€/mes', label: 'Plan de entrada', description: '100 fotos incluidas' },
 ]
 
 function StatCard({ value, label, description, delay }: { value: string; label: string; description: string; delay: number }) {
