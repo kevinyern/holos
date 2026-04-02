@@ -79,7 +79,7 @@ const FAQ_ITEMS = [
   },
   {
     q: '¿Ofrecéis factura?',
-    a: 'Sí. Emitimos factura con IVA para clientes en España y el resto de la UE. Llega automáticamente a tu email tras cada pago.',
+    a: 'Sí. Stripe genera automáticamente un recibo tras cada pago. Para factura con IVA, escríbenos a hola@photoagent.pro con tus datos fiscales.',
   },
 ]
 
